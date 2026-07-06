@@ -1,4 +1,6 @@
 
 ## setting up the project :
 
-    ```curl -sSL https://install.python-poetry.org | python3 -```
+```zsh
+curl -sSL https://install.python-poetry.org | python3 -
+```
