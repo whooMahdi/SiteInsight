@@ -1,7 +1,7 @@
 from typing import Optional, Dict, Any
 import json
 import os
-import utils
+from source.utils import get_abs_path
 
 class AppConfig:
  
@@ -50,7 +50,7 @@ class AppConfig:
                     self.__dict__.update(data)
             return True
         except Exception as e:
-            print(f"Config Error: Failed to load from {utils.get_abs_path(filepath)}: {e}")
+            print(f"Config Error: Failed to load from {get_abs_path(filepath)}: {e}")
         return False
 
     def save_to_file(self, filepath: str = DEFAULT_CONFIG_PATH) -> bool:
@@ -59,7 +59,7 @@ class AppConfig:
                 json.dump(self.__dict__, file, indent=4)
             return True
         except Exception as e:
-            print(f"Config Error: Failed to save to {utils.get_abs_path(filepath)}: {e}")
+            print(f"Config Error: Failed to save to {get_abs_path(filepath)}: {e}")
         return False
 
     def update_settings(self, new_settings: Dict[str, Any]) -> None:
