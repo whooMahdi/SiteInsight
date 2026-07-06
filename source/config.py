@@ -1,61 +1,67 @@
 from typing import Optional, Dict, Any
 import json
 import os
+import tools
 
 class AppConfig:
-    _BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    _DEFAULT_PATH = os.path.join(_BASE_DIR, "config.json")
+ 
+    def __init__(
+            self, 
+            start_url: str, 
+            max_depth: int = 10, 
+            max_links_per_page: int = 10, 
+            thread_count: int = 5, 
+            output_dir : str = "output", 
+            proxy_url: str = ""
+        ) -> None:
 
-    def __init__(self) -> None:
-        self.start_url: str = "https://example.com"
-        self.max_depth: int = 10
-        self.max_links_per_page: int = 10
-        self.thread_count: int = 5
-        self.output_dir: str = "./archive"
-        self.proxy_url: Optional[str] = None
+        self.start_url = start_url
+        self.max_depth = max_depth
+        self.max_links_per_page = max_links_per_page
+        self.thread_count = thread_count
+        self.output_dir = output_dir
+        self.proxy_url = proxy_url
 
-    def load_from_file(self, filepath: Optional[str] = None) -> bool:
-        target_path = filepath or self._DEFAULT_PATH
-        
-        if not os.path.exists(target_path):
-            self.save_to_file(target_path)
-            return True
+    DEFAULT_CONFIG_PATH = "config.json"
+
+    def load_from_file(self, filepath: str = DEFAULT_CONFIG_PATH) -> bool:
 
         try:
-            with open(target_path, "r", encoding="utf-8") as file:
-                data = json.load(file)
-                self.start_url = data.get("start_url", self.start_url)
-                self.max_depth = data.get("max_depth", self.max_depth)
-                self.max_links_per_page = data.get("max_links_per_page", self.max_links_per_page)
-                self.thread_count = data.get("thread_count", self.thread_count)
-                self.output_dir = data.get("output_dir", self.output_dir)
-                self.proxy_url = data.get("proxy_url", self.proxy_url)
+            if not os.path.exists(filepath):
+                raise Exception("File doesn't exist")
+            with open(filepath, "r", encoding="utf-8") as file:
+                data = dict(json.load(file))
+                if not set(data.keys()).issubset(self.__dict__.keys()):
+                    raise Exception("Config file is not valid,\nthere are/is key(s) that are not valid in the config system")
+                elif any((not isinstance(data[k], type(self.__dict__[k])) for k in data.keys())):
+                    raise Exception("Config file is not valid,\nthere are/is value(s) that their type is not mached with the config system")
+                else:
+                    self.__dict__.update(data)
             return True
         except Exception as e:
-            print(f"[Config Error] Failed to load from {target_path}: {e}")
-            return False
+            print(f"Config Error: Failed to load from {tools.get_abs_path(filepath)}: {e}")
+        return False
 
-    def save_to_file(self, filepath: Optional[str] = None) -> bool:
-        target_path = filepath or self._DEFAULT_PATH
+    def save_to_file(self, filepath: str = DEFAULT_CONFIG_PATH) -> bool:
         try:
-            with open(target_path, "w", encoding="utf-8") as file:
-                json.dump({
-                    "start_url": self.start_url,
-                    "max_depth": self.max_depth,
-                    "max_links_per_page": self.max_links_per_page,
-                    "thread_count": self.thread_count,
-                    "output_dir": self.output_dir,
-                    "proxy_url": self.proxy_url
-                }, file, indent=4)
+            with open(filepath, "w", encoding="utf-8") as file:
+                json.dump(self.__dict__, file)
             return True
         except Exception as e:
-            print(f"[Config Error] Failed to save to {target_path}: {e}")
-            return False
+            print(f"Config Error: Failed to save to {tools.get_abs_path(filepath)}: {e}")
+        return False
 
     def update_settings(self, new_settings: Dict[str, Any]) -> None:
         for key, value in new_settings.items():
             if hasattr(self, key):
                 setattr(self, key, value)
 
-config = AppConfig()
-config.load_from_file()
+    def __str__(self) -> str:
+        return str(self.__dict__)
+
+# config = AppConfig("hello")
+# config.load_from_file()
+# print(config)
+# config.update_settings({"start_url": "github.com"})
+# config.save_to_file()
+# print(config)
