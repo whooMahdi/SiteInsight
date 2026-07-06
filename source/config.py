@@ -6,8 +6,8 @@ import tools
 class AppConfig:
  
     def __init__(
-            self, 
-            start_url: str, 
+            self,
+            start_url: str = "", 
             max_depth: int = 10, 
             max_links_per_page: int = 10, 
             thread_count: int = 5, 
@@ -24,8 +24,19 @@ class AppConfig:
 
     DEFAULT_CONFIG_PATH = "config.json"
 
-    def load_from_file(self, filepath: str = DEFAULT_CONFIG_PATH) -> bool:
+    @staticmethod
+    def create_from_file(filepath: str = DEFAULT_CONFIG_PATH):
+        conf = AppConfig()
+        conf.load_from_file(filepath=filepath)
+        return conf
 
+    @staticmethod
+    def create_default_config_file(filepath: str = DEFAULT_CONFIG_PATH):
+        if not os.path.exists(filepath):
+            conf = AppConfig()
+            conf.save_to_file(filepath=filepath)
+
+    def load_from_file(self, filepath: str = DEFAULT_CONFIG_PATH) -> bool:
         try:
             if not os.path.exists(filepath):
                 raise Exception("File doesn't exist")
@@ -45,7 +56,7 @@ class AppConfig:
     def save_to_file(self, filepath: str = DEFAULT_CONFIG_PATH) -> bool:
         try:
             with open(filepath, "w", encoding="utf-8") as file:
-                json.dump(self.__dict__, file)
+                json.dump(self.__dict__, file, indent=4)
             return True
         except Exception as e:
             print(f"Config Error: Failed to save to {tools.get_abs_path(filepath)}: {e}")
@@ -58,10 +69,3 @@ class AppConfig:
 
     def __str__(self) -> str:
         return str(self.__dict__)
-
-# config = AppConfig("hello")
-# config.load_from_file()
-# print(config)
-# config.update_settings({"start_url": "github.com"})
-# config.save_to_file()
-# print(config)
