@@ -1,4 +1,4 @@
-from config import AppConfig
+from source.config import AppConfig
 
 AppConfig.create_default_config_file()
 conf = AppConfig.create_from_file()
