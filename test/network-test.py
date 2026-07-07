@@ -1,9 +1,10 @@
 from source.config import AppConfig
 from source.network import SecurityLayer
+from source.url_utils import URL
 
 conf = AppConfig("https://www.github.com")
 sec = SecurityLayer(conf)
-visited_urls = []
+visited_urls = set()
 
 urls = [
     "https://github.com/gist/",
@@ -14,8 +15,11 @@ urls = [
     "https://github.com/"
 ]
 
+urls = map(URL, urls)
+
 for url in urls:
     if status := sec.should_crawl(url, visited_urls):
-        visited_urls.append(url)
+        visited_urls.add(url)
 
-    print(f"URL: {url} -> {status}")
+    print(f"{url} -> {status}")
+print(visited_urls)
