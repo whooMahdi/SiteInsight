@@ -1,4 +1,4 @@
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 import json
 import os
 from source.utils import get_abs_path
@@ -12,7 +12,8 @@ class AppConfig:
             max_links_per_page: int = 10, 
             thread_count: int = 5, 
             output_dir : str = "output", 
-            proxy_url: str = ""
+            proxy_url: str = "",
+            timeout: int = 5
         ) -> None:
 
         self.start_url = start_url
@@ -21,6 +22,7 @@ class AppConfig:
         self.thread_count = thread_count
         self.output_dir = output_dir
         self.proxy_url = proxy_url
+        self.timeout = timeout
 
     DEFAULT_CONFIG_PATH = "config.json"
 
