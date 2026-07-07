@@ -1,78 +1,91 @@
-from typing import Optional, Iterable
-from urllib.parse import urlparse
+from typing import Optional
+from urllib.error import URLError
 from urllib.robotparser import RobotFileParser
-import urllib.request
-from source.config import AppConfig
+from urllib.request import Request, urlopen
 from fake_useragent import UserAgent
+from source.config import AppConfig
+from source.url_utils import URL
 
 
 class SecurityLayer:
-    def __init__(
-            self,
-            config: AppConfig
-        ):
-        self.conf: AppConfig = config
-        self.start_url: str = config.start_url
-        self.parent_domain: str = self._get_clean_domain(self.start_url)
+    def __init__(self, config: AppConfig):
+        self.config: AppConfig = config
+        self.start_url: URL = URL(config.start_url)
         self.robot_parser: Optional[RobotFileParser] = None
+        self.user_agent: UserAgent = UserAgent()
         self._init_robot_parser()
 
-    def _get_clean_domain(self, url: str) -> str:
-        try:
-            domain = urlparse(url).netloc
-            return domain[4:] if domain.startswith("www.") else domain
-        except Exception:
-            return ""
-    
+    def _to_url(self, url: str | URL) -> URL:
+        return URL(url) if not isinstance(url, URL) else url
+
     def _init_robot_parser(self) -> None:
+        if not self.start_url.is_valid:
+            print("[Security] Invalid start URL.")
+            return
+
+        robots_url = URL(
+            f"{self.start_url.scheme}://{self.start_url.domain}/robots.txt"
+        )
+
         try:
-            parsed_start_url = urlparse(self.start_url)
-            robots_url = f"{parsed_start_url.scheme}://{parsed_start_url.netloc}/robots.txt"
-
-            user_agent = UserAgent()
-
-            self.robot_parser = RobotFileParser()
-
-            req = urllib.request.Request(
-                url=robots_url,
+            request = Request(
+                url=robots_url.value,
                 headers={
-                    "User-Agent": user_agent.random
+                    "User-Agent": self.user_agent.random
                 }
             )
 
-            with urllib.request.urlopen(req, timeout=5) as repsonse:
+            self.robot_parser = RobotFileParser()
+
+            with urlopen(request, timeout=5) as response:
                 self.robot_parser.parse(
-                    line.decode("utf-8") for line in repsonse.readlines()
+                    line.decode(
+                        "utf-8",
+                        errors="ignore"
+                    )
+                    for line in response.readlines()
                 )
 
-            # print(f"[Security] robots.txt loaded successfully.")
-        except Exception as e:
-            print(f"[Security] Warning: Could not read robots.txt: {e}")
+        except URLError:
+            print("[Security] Could not download robots.txt")
             self.robot_parser = None
 
-    def _is_valid_url(self, url: str) -> bool:
-        if not url or not isinstance(url, str):
-            return False
-        try:
-            parsed = urlparse(url.strip())
-            return bool((parsed.scheme in ("https", "http")) and parsed.netloc)
-        except Exception:
-            return False
+        except Exception as e:
+            print(f"[Security] Unexpected error: {e}")
+            self.robot_parser = None
 
-    def _is_allowed_by_robots(self, url: str, user_agent: str = "*") -> bool:
+    def _is_same_domain(self, url: str | URL) -> bool:
+        url = self._to_url(url)
+
+        return (
+            url.is_valid
+            and url.domain == self.start_url.domain
+        )
+
+    def _is_allowed_by_robots(self, url: str | URL) -> bool:
+        url = self._to_url(url)
+
         if self.robot_parser is None:
             return True
 
-        if self._is_same_domain(url):
-            return self.robot_parser.can_fetch(user_agent, url)
-        return False
-    
-    def _is_same_domain(self, url: str) -> bool:
-        return self._get_clean_domain(url) == self.parent_domain
+        return self.robot_parser.can_fetch(
+            "*",
+            url.value
+        )
 
-    def should_crawl(self, url: str, visited_urls: Iterable[str] = []) -> bool:
+    def should_crawl(
+        self,
+        url: str | URL,
+        visited_urls: Optional[set[URL]] = None
+    ) -> bool:
+        url = self._to_url(url)
+
+        if visited_urls is None:
+            visited_urls = set()
+
         return (
-            self._is_valid_url(url) and
-            self._is_allowed_by_robots(url) and
-            url not in visited_urls
+            url.is_valid
+            and self._is_same_domain(url)
+            and self._is_allowed_by_robots(url)
+            and url not in visited_urls
         )
