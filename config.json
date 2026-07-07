@@ -4,5 +4,6 @@
     "max_links_per_page": 10,
     "thread_count": 5,
     "output_dir": "output",
-    "proxy_url": ""
+    "proxy_url": "",
+    "timeout": 5
 }

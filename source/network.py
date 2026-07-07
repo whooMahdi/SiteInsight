@@ -37,7 +37,7 @@ class SecurityLayer:
 
             self.robot_parser = RobotFileParser()
 
-            with urlopen(request, timeout=5) as response:
+            with urlopen(request, timeout=self.config.timeout) as response:
                 self.robot_parser.parse(
                     line.decode(
                         "utf-8",
