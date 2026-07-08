@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import json
 import os
 from source.utils import get_abs_path
@@ -7,12 +7,12 @@ class AppConfig:
  
     def __init__(
             self,
-            start_url: str = "", 
+            start_url: Optional[str] = None, 
             max_depth: int = 10, 
             max_links_per_page: int = 10, 
             thread_count: int = 5, 
             output_dir : str = "output", 
-            proxy_url: str = "",
+            proxy_url: Optional[str] = None,
             timeout: int = 5
         ) -> None:
 
