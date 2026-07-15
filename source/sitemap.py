@@ -91,7 +91,10 @@ class SitemapGraph():
 
         return graph
     
-    def make_sitemap_text_tree(self, root_page: WebPage, max_depth: int = 8, max_children: int = 8) -> str:
+    def make_sitemap_text_tree(self, root_page: WebPage, max_depth: int = 8, max_children: int = 8, sort_by_rank : Optional[bool] = None) -> str:
+
+        if sort_by_rank and (not self._scores):
+            raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
 
         root = (Node(root_page.page_title), root_page) # node, page
 
@@ -104,7 +107,7 @@ class SitemapGraph():
                 Node("...", current_root[0])
                 return
             sub_pages = list(self._edges[current_root[1]])
-            if self._scores:
+            if self._scores and not (sort_by_rank == False):
                 sub_pages.sort(key=lambda x: self._scores.get(x, 0), reverse=True) # type: ignore
 
             sub_pages_cutted = len(sub_pages) > max_children
@@ -126,3 +129,23 @@ class SitemapGraph():
         create_sub_nodes(root)
 
         return RenderTree(root[0]).by_attr()
+
+    def as_text(self, sort_by_rank : Optional[bool] = None):
+        if sort_by_rank and (not self._scores):
+            raise Exception("get_all_edges_as_text : Cannot be forced to sort_by_rank because the ranks are not calculated")
+        
+        is_ranked = self.scores != None and not (sort_by_rank == False)
+        if is_ranked:
+            pages = self.sort_pages_by_rank()
+        else:
+            pages = list(self._all_pages.values())
+
+        lines = []
+        for p in pages:
+            prefix = f"Rank {self._scores[p]:.2f} ::  " if is_ranked else "" # type: ignore
+            line = prefix + f"{p.page_title}  -> {[to_page.page_title for to_page in self._edges.get(p, [])]}"
+            lines.append(line)
+        return "\n".join(lines)
+    
+    def __str__(self) -> str:
+        return self.as_text()
