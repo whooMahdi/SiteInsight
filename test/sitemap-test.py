@@ -52,6 +52,6 @@ total = sum(scores.values())
 print(f"sum: {total:.6f}")
 
 print(graph.make_sitemap_text_tree(page_A))
-print(graph)
+print(graph.to_text())
 
 # poetry run python -m test.sitemap-test

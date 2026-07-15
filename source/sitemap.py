@@ -130,7 +130,7 @@ class SitemapGraph():
 
         return RenderTree(root[0]).by_attr()
 
-    def as_text(self, sort_by_rank : Optional[bool] = None):
+    def to_text(self, sort_by_rank : Optional[bool] = None):
         if sort_by_rank and (not self._scores):
             raise Exception("get_all_edges_as_text : Cannot be forced to sort_by_rank because the ranks are not calculated")
         
@@ -148,4 +148,4 @@ class SitemapGraph():
         return "\n".join(lines)
     
     def __str__(self) -> str:
-        return self.as_text()
+        return self.to_text()
