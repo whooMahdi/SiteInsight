@@ -87,22 +87,21 @@ class PageContent:
 
     def __init__(self, snippet_list: Optional[list[ContentSnippet]] = None):
         self._snippet_list: list[PageContent.ContentSnippet] = snippet_list or list()
-        self._link_snippet_list: list[PageContent.LinkSnippet] = \
-            list() if snippet_list is None else list(filter(lambda x: isinstance(x, PageContent.LinkSnippet), snippet_list)) # type: ignore
+        self._unique_links: set[URL] = \
+            set() if snippet_list is None else set(map(
+                lambda x: URL(x.link), # type: ignore
+                filter(lambda x: isinstance(x, PageContent.LinkSnippet), snippet_list)
+            )) # type: ignore
 
     def add_snippet(self, snippet: ContentSnippet):
         if isinstance(snippet, PageContent.LinkSnippet):
-            self._link_snippet_list.append(snippet)
+            self._unique_links.add(URL(snippet.link))
         self._snippet_list.append(snippet)
     
     def get_page_snippets(self):
         for s in self._snippet_list:
             yield s
-    
-    @property
-    def page_links_list(self):
-        return self._link_snippet_list
-    
+        
     def get_media_snippets(self):
         for s in self.get_page_snippets():
             if isinstance(s, PageContent.ImageSnippet | PageContent.VideoSnippet):
@@ -128,6 +127,12 @@ class WebPage:
         self.url: URL = url
         self.page_title: str = page_title
         self.content: PageContent = content
+
+    @property
+    def page_unique_urls(self) -> set[URL]:
+        if self.url in self.content._unique_links:
+            self.content._unique_links.remove(self.url)
+        return self.content._unique_links
 
     @property
     def page_type(self) -> str:

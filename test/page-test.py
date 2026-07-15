@@ -27,7 +27,7 @@ jstr = json.dumps(p_page.to_dict(), indent=4, ensure_ascii=False)
 print(jstr)
 
 # p_page_recovered = WebPage.from_dict(json.loads(jstr))
-# print(p_page_recovered.content.page_links_list)
+# print(p_page_recovered.page_unique_links)
 # if isinstance(p_page_recovered, ProductPage):
 #     s = p_page_recovered.price_snippet
 #     if s is None:
