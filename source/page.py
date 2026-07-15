@@ -11,13 +11,46 @@ class PageContent:
         def raw_text(self) -> str:
             pass
 
+        @abstractmethod
+        def to_dict(self) -> dict:
+            pass
+
+        @staticmethod
+        def from_dict(data: dict) -> 'PageContent.ContentSnippet':
+            snippet_type = data.get("type")
+            if snippet_type == "image":
+                return PageContent.ImageSnippet(
+                    image_url=data["image_url"],
+                    image_local_path=data["image_local_path"],
+                    description=data.get("description")
+                )
+            elif snippet_type == "video":
+                return PageContent.VideoSnippet(
+                    video_url=data["video_url"],
+                    description=data.get("description")
+                )
+            elif snippet_type == "text":
+                return PageContent.TextSnippet(text=data["text"])
+            elif snippet_type == "link":
+                return PageContent.LinkSnippet(link=data["link"], showtext=data["showtext"])
+            else:
+                raise ValueError(f"Unknown snippet type: {snippet_type}")
+
     class ImageSnippet(ContentSnippet):
-        def __init__(self, image_url: str, description : Optional[str] = None):
+        def __init__(self, image_url: str, image_local_path: str, description : Optional[str] = None):
             self.image_url: str = image_url
+            self.image_local_path = image_local_path
             self.description: Optional[str] = description
         @property
         def raw_text(self) -> str:
             return self.image_url + (self.description or "")
+        def to_dict(self) -> dict:
+            return {
+                "type": "image",
+                "image_url": self.image_url,
+                "image_local_path": self.image_local_path,
+                "description": self.description
+            }
 
     class VideoSnippet(ContentSnippet):
         def __init__(self, video_url: str, description : Optional[str] = None):
@@ -26,6 +59,12 @@ class PageContent:
         @property
         def raw_text(self) -> str:
             return self.video_url + (self.description or "")
+        def to_dict(self) -> dict:
+            return {
+                "type": "video",
+                "video_url": self.video_url,
+                "description": self.description
+            }
 
     class TextSnippet(ContentSnippet):
         def __init__(self, text: str):
@@ -33,13 +72,18 @@ class PageContent:
         @property
         def raw_text(self) -> str:
             return self.text
+        def to_dict(self) -> dict:
+            return {"type": "text", "text": self.text}
 
     class LinkSnippet(ContentSnippet):
-        def __init__(self, link: str):
+        def __init__(self, link: str, showtext : Optional[str] = None):
             self.link: str = link
+            self.showtext : Optional[str] = showtext
         @property
         def raw_text(self) -> str:
             return self.link
+        def to_dict(self) -> dict:
+            return {"type": "link", "link": self.link, "showtext": self.showtext}
 
     def __init__(self, snippet_list: Optional[list[ContentSnippet]] = None):
         self._snippet_list: list[PageContent.ContentSnippet] = snippet_list or list()
@@ -68,6 +112,17 @@ class PageContent:
         for s in self.get_page_snippets():
             if isinstance(s, PageContent.TextSnippet):
                 yield s
+
+    def to_dict(self) -> dict:
+        return {
+            "snippets": [s.to_dict() for s in self._snippet_list]
+        }
+
+    @staticmethod
+    def from_dict(data: dict) -> 'PageContent':
+        snippet_list = [PageContent.ContentSnippet.from_dict(item) for item in data["snippets"]]
+        return PageContent(snippet_list=snippet_list)
+    
 class WebPage:
     def __init__(self, url: URL, page_title: str, content: PageContent):
         self.url: URL = url
@@ -77,6 +132,42 @@ class WebPage:
 
     def add_refered_in(self, page: 'WebPage'):
         self.refered_in.append(page)
+
+    @property
+    def page_type(self) -> str:
+        return "unknown"
+
+    def to_dict(self) -> dict:
+        data = {
+            "url": str(self.url),
+            "page_title": self.page_title,
+            "content": self.content.to_dict(),
+            "page_type": self.page_type,
+        }
+        return data
+    
+    @staticmethod
+    def from_dict(data: dict) -> 'WebPage':
+        url = URL(data["url"])
+        page_title = data["page_title"]
+        content = PageContent.from_dict(data["content"])
+        page_type = data.get("page_type", "article")
+
+        if page_type == "product":
+            price_text = data.get("price")
+            price_snippet = PageContent.TextSnippet(price_text) if price_text else None
+            return ProductPage(url, page_title, content, price_snippet)
+
+        elif page_type == "gallery":
+            return GalleryPage(url, page_title, content)
+
+        elif page_type == "article":
+            author_text = data.get("author")
+            author_snippet = PageContent.TextSnippet(author_text) if author_text else None
+            return ArticlePage(url, page_title, content, author_snippet)
+        
+        else:
+            return WebPage(url, page_title, content)
 
 class ArticlePage(WebPage):
 
@@ -89,6 +180,15 @@ class ArticlePage(WebPage):
                     author_snippet = s
         self.author_snippet = author_snippet
 
+    @property
+    def page_type(self) -> str:
+        return "article"
+    
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data["author"] = self.author_snippet.raw_text if self.author_snippet else None
+        return data
+
 class ProductPage(WebPage):
 
     def __init__(self, url: URL, page_title: str, content: PageContent, price_snippet: Optional[PageContent.TextSnippet] = None):
@@ -99,6 +199,16 @@ class ProductPage(WebPage):
                     price_snippet = t
         self.price_snippet = price_snippet
 
+    @property
+    def page_type(self) -> str:
+        return "product"
+    
+    def to_dict(self) -> dict:
+        data = super().to_dict()
+        data["price"] = self.price_snippet.text if self.price_snippet else None
+        return data
+
+
 class GalleryPage(WebPage):
 
     def __init__(self, url: URL, page_title: str, content: PageContent):
@@ -107,6 +217,10 @@ class GalleryPage(WebPage):
     @property
     def media_snippets(self):
         return self.content.get_media_snippets()
+    
+    @property
+    def page_type(self) -> str:
+        return "gallery"
 
 class PageFactory():
     def __init__(self, url: URL, page_title: str, content: PageContent):
@@ -149,4 +263,3 @@ class PageFactory():
     @staticmethod
     def create_page(url: URL, page_title: str, content: PageContent) -> WebPage:
         return PageFactory(url, page_title, content).create()
-    
