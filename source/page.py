@@ -128,10 +128,6 @@ class WebPage:
         self.url: URL = url
         self.page_title: str = page_title
         self.content: PageContent = content
-        self.refered_in: list['WebPage'] = list()     
-
-    def add_refered_in(self, page: 'WebPage'):
-        self.refered_in.append(page)
 
     @property
     def page_type(self) -> str:
