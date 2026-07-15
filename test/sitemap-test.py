@@ -1,30 +1,54 @@
 from source.sitemap import SitemapGraph
 from source.url_utils import URL
+from source.page import PageContent, PageFactory
 
-# A -> B, C
+# A -> B, C. D
 # B -> A
 # C -> A, B
+# D -> nothing
 
-g = SitemapGraph()
 
-A = URL('http://example.com/_A')
-B = URL('http://example.com/_B')
-C = URL('http://example.com/_C')
+content_A = PageContent()
+content_A.add_snippet(PageContent.TextSnippet("Page A"))
+content_A.add_snippet(PageContent.LinkSnippet("https://example.com/A", showtext="Page A"))
+content_A.add_snippet(PageContent.LinkSnippet("https://example.com/B", showtext="Page B"))
+content_A.add_snippet(PageContent.LinkSnippet("https://example.com/C", showtext="Page C"))
+content_A.add_snippet(PageContent.LinkSnippet("https://example.com/D", showtext="Page C"))
 
-g.add_edge(A, B)
-g.add_edge(A, C)
-g.add_edge(B, A)
-g.add_edge(C, A)
-g.add_edge(C, B)
+page_A = PageFactory.create_page(URL("https://example.com/A"), "A", content_A)
 
-g.calculate_ranks()
-result = g.sort_urls_by_rank()
+content_B = PageContent()
+content_B.add_snippet(PageContent.TextSnippet("Page B"))
+content_B.add_snippet(PageContent.LinkSnippet("https://example.com/link-2", showtext="Link to relative products"))
+content_B.add_snippet(PageContent.LinkSnippet("https://example.com/A", showtext="Page A"))
 
-scores = (g.scores or dict())
-print("sort :", [str(url) for url in result])
+page_B = PageFactory.create_page(URL("https://example.com/B"), "B", content_B)
+
+content_C = PageContent()
+content_C.add_snippet(PageContent.TextSnippet("Page C"))
+content_C.add_snippet(PageContent.LinkSnippet("https://example.com/A", showtext="Page A"))
+content_C.add_snippet(PageContent.LinkSnippet("https://example.com/B", showtext="Page B"))
+
+page_C = PageFactory.create_page(URL("https://example.com/C"), "C", content_C)
+
+page_D = PageFactory.create_page(URL("https://example.com/D"), "D", PageContent())
+
+
+# ------------------------------------------------------------------------
+# A -> B, C. D
+# B -> A
+# C -> A, B
+# D -> nothing
+
+all_pages = {page_A, page_B, page_C, page_D}
+
+graph = SitemapGraph.from_webpages(all_pages)
+
+scores = (graph.scores or dict())
+print("sort :", [str(page) for page in graph.sort_pages_by_rank()])
 print("scores :", {str(k): v for k, v in scores.items()})
 
 total = sum(scores.values())
-print(f"summition: {total:.6f}")
+print(f"sum: {total:.6f}")
 
 # poetry run python -m test.sitemap-test
