@@ -44,11 +44,13 @@ all_pages = {page_A, page_B, page_C, page_D}
 
 graph = SitemapGraph.from_webpages(all_pages)
 
-scores = (graph.scores or dict())
+scores = (graph._scores or dict())
 print("sort :", [str(page) for page in graph.sort_pages_by_rank()])
 print("scores :", {str(k): v for k, v in scores.items()})
 
 total = sum(scores.values())
 print(f"sum: {total:.6f}")
+
+print(graph.make_sitemap_text_tree(page_A))
 
 # poetry run python -m test.sitemap-test

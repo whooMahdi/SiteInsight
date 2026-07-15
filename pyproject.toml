@@ -6,10 +6,10 @@ authors = [
     {name = "mhrohani1385",email = "M.H.Rohani1385@gmail.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<4.0"
 dependencies = [
-    "fake-useragent (>=2.2.0,<3.0.0)"
-    
+    "fake-useragent (>=2.2.0,<3.0.0)",
+    "anytree (>=2.13.0,<3.0.0)"
 ]
 
 
