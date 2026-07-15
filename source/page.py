@@ -132,6 +132,9 @@ class WebPage:
     @property
     def page_type(self) -> str:
         return "unknown"
+    
+    def __hash__(self) -> int:
+        return hash(self.url) - 5
 
     def to_dict(self) -> dict:
         data = {
