@@ -3,7 +3,8 @@ name = "site-insight"
 version = "0.1.0"
 description = ""
 authors = [
-    {name = "mhrohani1385",email = "M.H.Rohani1385@gmail.com"}
+    {name = "mahdi", email = "whoo.mahdi@gmail.com"},
+    {name = "mhrohani1385", email = "M.H.Rohani1385@gmail.com"}
 ]
 readme = "README.md"
 requires-python = ">=3.12"
