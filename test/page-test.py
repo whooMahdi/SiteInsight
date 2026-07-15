@@ -13,6 +13,8 @@ p_content.add_snippet(PageContent.TextSnippet("Price : 100 $"))
 
 p_page = PageFactory.create_page(URL("example.com"), "title", p_content)
 
+print(p_page.page_unique_urls)
+
 if isinstance(p_page, ProductPage):
     s = p_page.price_snippet
     if s is None:

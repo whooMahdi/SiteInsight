@@ -128,6 +128,17 @@ class WebPage:
         self.page_title: str = page_title
         self.content: PageContent = content
 
+    def __eq__(self, value: object) -> bool:
+        if isinstance(value, WebPage):
+            return self.url == value.url
+        return False
+    
+    def __hash__(self) -> int:
+        return hash("webpage : " + str(self.url))
+    
+    def __str__(self) -> str:
+        return f"{self.page_title} : {self.url}"
+
     @property
     def page_unique_urls(self) -> set[URL]:
         if self.url in self.content._unique_links:
