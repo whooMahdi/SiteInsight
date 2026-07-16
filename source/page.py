@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Optional
-from source.network import URL
+from source.url_utils import URL
 
 CHARACTER_PER_IMAGE_RATIO = 380
 
