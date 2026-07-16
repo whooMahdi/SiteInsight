@@ -44,7 +44,7 @@ all_pages = {page_A, page_B, page_C, page_D}
 
 graph = SitemapGraph.from_webpages(all_pages)
 
-scores = (graph._scores or dict())
+scores = (graph.scores or dict())
 print("sort :", [str(page) for page in graph.sort_pages_by_rank()])
 print("scores :", {str(k): v for k, v in scores.items()})
 
