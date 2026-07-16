@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from source.url_utils import URL
 
-CHARACTER_PER_IMAGE_RATIO = 380
-
 class PageContent:
     class ContentSnippet(ABC):
         @property
