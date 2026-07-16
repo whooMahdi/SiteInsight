@@ -33,6 +33,7 @@ page_C = PageFactory.create_page(URL("https://example.com/C"), "C", content_C)
 
 page_D = PageFactory.create_page(URL("https://example.com/D"), "D", PageContent())
 
+isolated_page = PageFactory.create_page(URL("https://example.com/isolated"), "Isolated", PageContent())
 
 # ------------------------------------------------------------------------
 # A -> B, C. D
@@ -40,7 +41,7 @@ page_D = PageFactory.create_page(URL("https://example.com/D"), "D", PageContent(
 # C -> A, B
 # D -> nothing
 
-all_pages = {page_A, page_B, page_C, page_D}
+all_pages = {page_A, page_B, page_C, page_D, isolated_page}
 
 graph = SitemapGraph.from_webpages(all_pages)
 

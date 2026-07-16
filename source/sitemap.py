@@ -28,16 +28,16 @@ class SitemapGraph():
             self._edges[from_page] = set()
         self._edges[from_page].update(to_pages)
 
-    def add_edge(self, from_url: WebPage, to_url: WebPage):
-        if from_url == to_url:
+    def add_edge(self, from_page: WebPage, to_page: WebPage):
+        if from_page == to_page:
             return
         
-        if from_url not in self._edges:
-            self._edges[from_url] = set()
+        if from_page not in self._edges:
+            self._edges[from_page] = set()
 
-        self._all_pages[from_url.url] = from_url
-        self._all_pages[to_url.url] = to_url
-        self._edges[from_url].add(to_url)
+        self._all_pages[from_page.url] = from_page
+        self._all_pages[to_page.url] = to_page
+        self._edges[from_page].add(to_page)
 
     def calculate_ranks(self, iterations: int = 10, damping_factor: float = 0.85):    
         pages_count = len(self._all_pages)    
@@ -50,18 +50,18 @@ class SitemapGraph():
         
         for _ in range(iterations):
             new_scores = dict.fromkeys(all_pages_set, (1 - damping_factor) / pages_count)
-            for from_url, to_urls in self._edges.items():
-                if len(to_urls) == 0:
+            for from_page, to_page in self._edges.items():
+                if len(to_page) == 0:
                     continue
-                each_link_weight = self._scores[from_url] / len(to_urls)
-                for t in to_urls:
+                each_link_weight = self._scores[from_page] / len(to_page)
+                for t in to_page:
                     new_scores[t] += each_link_weight * damping_factor
 
             
 
             # pages without out link
 
-            pages_without_out = all_pages_set - set(self._edges.keys())
+            pages_without_out = filter(lambda x: x not in self._edges.keys() or len(self._edges[x]) == 0, all_pages_set)
             if pages_without_out:
                 total_score_without_out = sum(self._scores[p] for p in pages_without_out)
                 each_weight = (damping_factor * total_score_without_out) / pages_count
@@ -82,6 +82,11 @@ class SitemapGraph():
         all_pages_dict = dict(map(lambda x: (x.url, x), all_pages))
         graph = SitemapGraph()
         for p in all_pages:
+
+            # initializing : when a page is complately isolated, it should be exist in sitemap
+            graph._edges[p] = set()
+            graph._all_pages[p.url] = p
+
             for link in p.page_unique_urls:
                 if link in all_pages_dict:
                     graph.add_edge(p, all_pages_dict[link])
@@ -96,7 +101,12 @@ class SitemapGraph():
         if sort_by_rank and (not self._scores):
             raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
 
-        root = (Node(root_page.page_title), root_page) # node, page
+        placeholder = Node("")
+        root = (Node(root_page.page_title, placeholder), root_page) # node, page
+
+        # if root is isolated show it in a better way with the placeholder
+        if len(self._edges[root_page]) == 0:
+            return RenderTree(placeholder).by_attr()
 
         def create_sub_nodes(current_root: tuple[Node, WebPage], current_page_path: Optional[list[WebPage]] = None):
             if current_page_path is None:
@@ -108,7 +118,7 @@ class SitemapGraph():
                 return
             sub_pages = list(self._edges[current_root[1]])
             if self._scores and not (sort_by_rank == False):
-                sub_pages.sort(key=lambda x: self._scores.get(x, 0), reverse=True) # type: ignore
+                sub_pages.sort(key=lambda x: (-self._scores.get(x, 0), len(self._edges[x]))) # type: ignore
 
             sub_pages_cutted = len(sub_pages) > max_children
             cutted_items = 0
@@ -140,10 +150,13 @@ class SitemapGraph():
         else:
             pages = list(self._all_pages.values())
 
-        lines = []
+        lines = [
+            "   RANK   ||  PAGE NAME   ||   LINKED TO PAGES",
+            "----------------------------------------------"
+        ]
         for p in pages:
-            prefix = f"Rank {self._scores[p]:.2f} ::  " if is_ranked else "" # type: ignore
-            line = prefix + f"{p.page_title}  -> {[to_page.page_title for to_page in self._edges.get(p, [])]}"
+            prefix = f"  {self._scores[p]:.3f}   ::  " if is_ranked else "" # type: ignore
+            line = prefix + f"{p.page_title:^10s}  ->  {[to_page.page_title for to_page in self._edges.get(p, [])]}"
             lines.append(line)
         return "\n".join(lines)
     
