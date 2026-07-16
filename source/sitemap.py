@@ -151,6 +151,25 @@ class SitemapGraph():
             pages = list(self._all_pages.values())
 
         lines = [
+            "   PAGE NAME   ||   LINKED TO PAGES",
+            "-------------------------------------"
+        ]
+        for p in pages:
+            line = f"   {p.page_title:^10s}  ->  {[to_page.page_title for to_page in self._edges.get(p, [])]}"
+            lines.append(line)
+        return "\n".join(lines)
+    
+    def to_ranks_text(self, sort_by_rank : Optional[bool] = None):
+        if sort_by_rank and (not self._scores):
+            raise Exception("get_all_edges_as_text : Cannot be forced to sort_by_rank because the ranks are not calculated")
+        
+        is_ranked = self.scores != None and not (sort_by_rank == False)
+        if is_ranked:
+            pages = self.sort_pages_by_rank()
+        else:
+            pages = list(self._all_pages.values())
+
+        lines = [
             "   RANK   ||  PAGE NAME   ||   LINKED TO PAGES",
             "----------------------------------------------"
         ]
