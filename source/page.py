@@ -2,8 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Optional
 from source.url_utils import URL
 
-CHARACTER_PER_IMAGE_RATIO = 380
-
 class PageContent:
     class ContentSnippet(ABC):
         @property
@@ -92,10 +90,19 @@ class PageContent:
                 lambda x: URL(x.link), # type: ignore
                 filter(lambda x: isinstance(x, PageContent.LinkSnippet), snippet_list)
             )) # type: ignore
+        self._pending_image_snippets: set[PageContent.ImageSnippet] = set() if snippet_list is None else set(
+                filter(lambda x: isinstance(x, PageContent.ImageSnippet) and x.image_local_path is None, snippet_list)
+            ) # type: ignore
+    
+    @property
+    def pending_download_image_snippets(self):
+        return self._pending_image_snippets
 
     def add_snippet(self, snippet: ContentSnippet):
         if isinstance(snippet, PageContent.LinkSnippet):
             self._unique_links.add(URL(snippet.link))
+        elif isinstance(snippet, PageContent.ImageSnippet) and snippet.image_local_path is None:
+            self._pending_image_snippets.add(snippet)
         self._snippet_list.append(snippet)
     
     def get_page_snippets(self):
