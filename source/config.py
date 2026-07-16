@@ -4,14 +4,15 @@ import os
 from source.utils import get_abs_path
 
 class AppConfig:
- 
+
     def __init__(
             self,
-            start_url: Optional[str] = None, 
-            max_depth: int = 10, 
-            max_links_per_page: int = 10, 
-            thread_count: int = 5, 
-            output_dir : str = "output", 
+            start_url: Optional[str] = None,
+            max_depth: int = 10,
+            max_links_per_page: int = 10,
+            thread_count: int = 5,
+            images_threads_count: int = 2,
+            output_dir: str = "output",
             proxy_url: Optional[str] = None,
             timeout: int = 5
         ) -> None:
@@ -20,6 +21,7 @@ class AppConfig:
         self.max_depth = max_depth
         self.max_links_per_page = max_links_per_page
         self.thread_count = thread_count
+        self.images_threads_count = images_threads_count
         self.output_dir = output_dir
         self.proxy_url = proxy_url
         self.timeout = timeout
@@ -44,12 +46,27 @@ class AppConfig:
                 raise Exception("File doesn't exist")
             with open(filepath, "r", encoding="utf-8") as file:
                 data = dict(json.load(file))
+
                 if not set(data.keys()).issubset(self.__dict__.keys()):
-                    raise Exception("Config file is not valid,\nthere are/is key(s) that are not valid in the config system")
-                elif any((not isinstance(data[k], type(self.__dict__[k])) for k in data.keys())):
-                    raise Exception("Config file is not valid,\nthere are/is value(s) that their type is not mached with the config system")
-                else:
-                    self.__dict__.update(data)
+                    raise Exception(
+                        "Config file is not valid,\n"
+                        "there are/is key(s) that are not valid in the config system"
+                    )
+
+                # نکته مهم: مقادیر پیش‌فرض بعضی فیلدها None هستن (مثل start_url، proxy_url).
+                # اگر مقدار فعلی None باشه، هر نوعی (str, int, ...) رو باید قبول کنیم؛
+                # وگرنه type(None) با type(str) هیچوقت match نمیشه و لود همیشه fail میده.
+                for key, new_value in data.items():
+                    current_value = self.__dict__[key]
+                    if current_value is not None and new_value is not None:
+                        if not isinstance(new_value, type(current_value)):
+                            raise Exception(
+                                "Config file is not valid,\n"
+                                f"value for '{key}' does not match the expected type "
+                                f"(expected {type(current_value).__name__}, got {type(new_value).__name__})"
+                            )
+
+                self.__dict__.update(data)
             return True
         except Exception as e:
             print(f"Config Error: Failed to load from {get_abs_path(filepath)}: {e}")

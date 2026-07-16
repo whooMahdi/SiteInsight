@@ -199,6 +199,7 @@ class ArticlePage(WebPage):
             for s in content.get_page_snippets():
                 if "author" in s.raw_text:
                     author_snippet = s
+                    break  # قبلاً break نداشت، پس آخرین match به‌جای اولین match گرفته می‌شد
         self.author_snippet = author_snippet
 
     @property
@@ -218,6 +219,7 @@ class ProductPage(WebPage):
             for t in content.get_text_snippets():
                 if "price" in t.text.lower():
                     price_snippet = t
+                    break  # قبلاً break نداشت
         self.price_snippet = price_snippet
 
     @property
