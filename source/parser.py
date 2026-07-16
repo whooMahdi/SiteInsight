@@ -72,10 +72,13 @@ class HTMLParser:
                 content.add_snippet(
                     PageContent.ImageSnippet(
                         image_url=str(absolute),
-                        image_local_path="",
+                        image_local_path=None,
                         description=alt,
                     )
                 )
+
+            elif tag.name == "video":
+                pass # optional feature
 
         return content
 

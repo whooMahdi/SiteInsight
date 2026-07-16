@@ -11,6 +11,9 @@ requires-python = ">=3.12,<4.0"
 dependencies = [
     "fake-useragent (>=2.2.0,<3.0.0)",
     "anytree (>=2.13.0,<3.0.0)",
+    "bs4 (>=0.0.2,<0.0.3)",
+    "requests (>=2.34.2)",
+    "lxml (>=6.1.1,<7.0.0)"
 ]
 
 [tool.poetry]

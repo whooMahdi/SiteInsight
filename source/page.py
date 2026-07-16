@@ -37,7 +37,7 @@ class PageContent:
                 raise ValueError(f"Unknown snippet type: {snippet_type}")
 
     class ImageSnippet(ContentSnippet):
-        def __init__(self, image_url: str, image_local_path: str, description : Optional[str] = None):
+        def __init__(self, image_url: str, image_local_path: Optional[str] = None, description : Optional[str] = None):
             self.image_url: str = image_url
             self.image_local_path = image_local_path
             self.description: Optional[str] = description
@@ -106,6 +106,8 @@ class PageContent:
         for s in self.get_page_snippets():
             if isinstance(s, PageContent.ImageSnippet | PageContent.VideoSnippet):
                 yield s
+
+    # def get_pending_downloads(self)
 
     def get_text_snippets(self):
         for s in self.get_page_snippets():
