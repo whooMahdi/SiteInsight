@@ -97,7 +97,7 @@ class PageContent:
             ) # type: ignore
     
     @property
-    def download_pending_image_snippets(self):
+    def pending_download_image_snippets(self):
         return self._pending_image_snippets
 
     def add_snippet(self, snippet: ContentSnippet):
