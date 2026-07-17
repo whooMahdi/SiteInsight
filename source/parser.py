@@ -79,7 +79,32 @@ class HTMLParser:
                 if not href:
                     continue
 
-                if href.startswith(("javascript:", "mailto:", "#")):
+                if href.startswith((
+                    "#",
+                    "javascript:",
+                    "mailto:",
+                    "tel:",
+                    "sms:",
+                    "data:",
+                    "blob:",
+                    "about:",
+                    "file:",
+                    "ftp:",
+                    "ws:",
+                    "wss:",
+                    "intent:",
+                    "market:",
+                    "geo:",
+                    "maps:",
+                    "android-app:",
+                    "tg:",
+                    "whatsapp:",
+                    "viber:",
+                    "skype:",
+                    "zoommtg:",
+                    "slack:",
+                    "discord:"
+                )):
                     continue
 
                 absolute = HTMLParser._absolute_url(href, base_url)

@@ -3,19 +3,18 @@ from typing import Optional
 
 
 class URL:
-    def __init__(self, url: Optional[str]):
+    def __init__(self, url: Optional[str], remove_trailing_slash: bool = False):
+        self.remove_trailing_slash: bool = remove_trailing_slash
         self._raw_url = url.strip() if isinstance(url, str) else ""
-        self._normalized_url = self.normalize(self._raw_url)
-        self._parsed: ParseResult = urlparse(self._normalized_url)
+        self._parsed = self._normalize(self._raw_url)
 
-    @staticmethod
-    def normalize(url: str) -> str:
-        if not url: return ""
-
+    def _normalize(self, url: str) -> ParseResult:
         if not isinstance(url, str):
-            return ""
+            return urlparse("")
 
         url = url.strip()
+
+        if not url: return urlparse("")
 
         if "://" not in url:
             url = "https://" + url
@@ -41,17 +40,16 @@ class URL:
 
         path = parsed.path
         path = "" if path == "/" else path
+        if self.remove_trailing_slash and path.endswith("/"):
+            path = path[:-1]
 
-        fragment = ""
-
-        return urlunparse((
-            scheme,
-            netloc,
-            path,
-            "",
-            parsed.query,
-            fragment
-        ))
+        return parsed._replace(
+            scheme=scheme,
+            netloc=netloc,
+            path=path,
+            params="",
+            fragment=""
+        )
 
     @property
     def scheme(self) -> str:
@@ -75,7 +73,7 @@ class URL:
 
     @property
     def value(self) -> str:
-        return self._normalized_url
+        return urlunparse(self._parsed)
 
     @property
     def is_valid(self) -> bool:
