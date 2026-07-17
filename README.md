@@ -1,4 +1,4 @@
-# Web Crawler
+# SiteInsight — Web Crawler
 
 A multi-threaded website crawler that walks a single domain, classifies each
 page it finds (article / product / gallery), pulls down its images, and
@@ -9,34 +9,36 @@ page as structured JSON rather than raw HTML.
 
 ## Table of contents
 
-- [Project structure](#project-structure)
-- [Setup](#setup)
-- [Configuration](#configuration)
-- [Running it](#running-it)
-- [How it works](#how-it-works)
-- [Output layout](#output-layout)
-- [Notes / limitations](#notes--limitations)
+- [SiteInsight — Web Crawler](#siteinsight--web-crawler)
+  - [Table of contents](#table-of-contents)
+  - [Project structure](#project-structure)
+  - [Setup](#setup)
+  - [Configuration](#configuration)
+  - [Usage](#usage)
+  - [How it works](#how-it-works)
+  - [Output layout](#output-layout)
+  - [Notes / limitations](#notes--limitations)
 
 ## Project structure
 
 ```
 .
-├── main.py                 # entry point — loads config.json and runs the crawler
+├── main.py                 # entry point — CLI over AppConfig, then runs the crawler
 ├── config.json              # crawl settings (created on first run if missing)
 ├── requirements.txt
 ├── source
-│   ├── __init__.py
-│   ├── config.py            # AppConfig: load/save settings from config.json
-│   ├── url_utils.py          # URL: normalization, comparison, hashing
-│   ├── network.py            # SecurityLayer: robots.txt + same-domain checks
-│   ├── parser.py             # HTMLParser: turns raw HTML into a PageContent
-│   ├── page.py               # WebPage / PageContent / PageFactory (page classification)
-│   ├── sitemap.py            # SitemapGraph: link graph + PageRank
-│   ├── report.py             # ReportGenerator: sitemap.txt, pagerank.txt, report.txt
-│   ├── crawler.py            # Crawler: the threaded fetch/parse/save pipeline
-│   └── utils.py              # small helpers (path resolution, string shortening)
+│   ├── __init__.py           # re-exports AppConfig, Crawler, URL, WebPage, etc.
+│   ├── config.py             # AppConfig: load/save settings from config.json
+│   ├── url_utils.py           # URL: normalization, comparison, hashing
+│   ├── network.py             # SecurityLayer: robots.txt + same-domain checks
+│   ├── parser.py              # HTMLParser: turns raw HTML into a PageContent
+│   ├── page.py                # WebPage / PageContent / PageFactory (page classification)
+│   ├── sitemap.py             # SitemapGraph: link graph + PageRank
+│   ├── report.py              # ReportGenerator: sitemap.txt, pagerank.txt, report.txt
+│   ├── crawler.py             # Crawler: the threaded fetch/parse/save pipeline
+│   └── utils.py               # small helpers (path resolution, string shortening)
 └── test
-    └── crawler-test.py       # standalone script to run the crawler against a real URL
+    └── crawler-test.py        # standalone script to run the crawler against a real URL
 ```
 
 ## Setup
@@ -60,7 +62,8 @@ and `anytree`.
 ## Configuration
 
 Settings live in `config.json`, loaded through `AppConfig`. If the file
-doesn't exist yet, a default one is created automatically.
+doesn't exist yet, `main.py` creates a default one automatically on first
+run.
 
 ```json
 {
@@ -86,16 +89,45 @@ doesn't exist yet, a default one is created automatically.
 | `proxy_url`            | Optional proxy for outgoing requests                                |
 | `timeout`              | Request timeout in seconds                                         |
 
-## Running it
+## Usage
+
+`main.py` is a thin CLI wrapper around `AppConfig`. Any flag you pass
+overrides the matching value in `config.json` **and gets saved back to it**,
+so an override sticks around as the new default for the next run too.
+
+```zsh
+poetry run python main.py [options]
+```
+
+| Flag                    | Short  | Meaning                                                  |
+|--------------------------|--------|-------------------------------------------------------------|
+| `--url`                  | `-u`   | Starting URL (overrides config)                             |
+| `--depth`                | `-d`   | How deep to follow links from the start URL                 |
+| `--max-links`            | `-ml`  | Max new links to queue per page                              |
+| `--threads`              | `-t`   | Thread count for fetching pages                              |
+| `--threads-image`        | `-ti`  | Thread count for downloading images                          |
+| `--output`                | `-o`   | Output directory for pages and reports                       |
+| `--proxy`                 | `-p`   | Proxy URL for the crawler's requests                         |
+| `--time-out`              | `-to`  | Per-request timeout, in seconds                              |
+| `--set`                   | `-s`   | Only write the values above to `config.json` — don't crawl   |
+
+Run a crawl with one-off overrides:
+
+```zsh
+poetry run python main.py -u https://example.com -d 3 -t 8
+```
+
+Just update the saved config without crawling (useful for setting things
+like `proxy_url` once and forgetting about it):
+
+```zsh
+poetry run python main.py -s -p http://127.0.0.1:8080
+```
+
+Run with whatever is already saved in `config.json`:
 
 ```zsh
 poetry run python main.py
-```
-
-or, for a quick one-off crawl without touching `config.json`:
-
-```zsh
-poetry run python test/crawler-test.py
 ```
 
 ## How it works
@@ -155,3 +187,6 @@ without re-fetching the site.
   sites but isn't perfect on unusual layouts.
 - PageRank scores are only meaningful relative to *this* crawl's link graph,
   not the web at large.
+- CLI overrides are written straight back to `config.json` on every run —
+  there's no "just this once" flag, so double-check flags before running if
+  you don't want them to become the new default.
