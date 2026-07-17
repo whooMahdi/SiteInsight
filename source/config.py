@@ -7,10 +7,11 @@ class AppConfig:
  
     def __init__(
             self,
-            start_url: Optional[str] = None, 
+            start_url: Optional[str] = None,
             max_depth: int = 10, 
             max_links_per_page: int = 10, 
-            thread_count: int = 5, 
+            threads_count: int = 5,
+            images_threads_count: int = 2,
             output_dir : str = "output", 
             proxy_url: Optional[str] = None,
             timeout: int = 5
@@ -19,7 +20,8 @@ class AppConfig:
         self.start_url = start_url
         self.max_depth = max_depth
         self.max_links_per_page = max_links_per_page
-        self.thread_count = thread_count
+        self.threads_count = threads_count
+        self.image_threads_count = images_threads_count
         self.output_dir = output_dir
         self.proxy_url = proxy_url
         self.timeout = timeout
@@ -46,7 +48,7 @@ class AppConfig:
                 data = dict(json.load(file))
                 if not set(data.keys()).issubset(self.__dict__.keys()):
                     raise Exception("Config file is not valid,\nthere are/is key(s) that are not valid in the config system")
-                elif any((not isinstance(data[k], type(self.__dict__[k])) for k in data.keys())):
+                elif not all((isinstance(data[k], type(self.__dict__[k])) or data[k] is None or self.__dict__[k] is None) for k in data.keys()):
                     raise Exception("Config file is not valid,\nthere are/is value(s) that their type is not mached with the config system")
                 else:
                     self.__dict__.update(data)
