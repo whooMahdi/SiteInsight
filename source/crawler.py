@@ -253,8 +253,8 @@ class Crawler:
         self.url_queue.put((self.start_url, 0))
 
         # Thread counts setup
-        fetcher_count = self.config.thread_count if hasattr(self.config, "thread_count") else 3
-        image_workers = self.config.images_threads_count if hasattr(self.config, "images_threads_count") else 2
+        fetcher_count = self.config.threads_count if hasattr(self.config, "threads_count") else 3
+        image_workers = self.config.image_threads_count if hasattr(self.config, "image_threads_count") else 2
 
         from concurrent.futures import ThreadPoolExecutor, as_completed
         with ThreadPoolExecutor(max_workers=fetcher_count) as fetcher_executor:

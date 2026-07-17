@@ -28,6 +28,44 @@ class HTMLParser:
         return title.get_text(strip=True) if title else "No title"
 
     @staticmethod
+    def _should_download_image(tag) -> bool:
+        src = tag.get("src", "")
+        if not src:
+            return False
+
+        # 1. Skip empty or obviously tracking images
+        if src.startswith("data:") or "1x1" in src or "pixel" in src:
+            return False
+
+        # 2. Skip Wikipedia math renderings (SVG formulas)
+        if "/render/svg/" in src or "/render/png/" in src:
+            return False
+
+        # 4. Skip tiny images (if width/height are present and very small)
+        width = tag.get("width")
+        height = tag.get("height")
+        try:
+            if width and int(width) < 50:
+                return False
+            if height and int(height) < 50:
+                return False
+        except (ValueError, TypeError):
+            pass  # width/height may be strings like "100%" – ignore
+
+        # 5. Skip obvious UI icons (common class names)
+        classes = tag.get("class", [])
+        if isinstance(classes, str):
+            classes = classes.split()
+        icon_classes = {"icon", "logo", "spacer", "mw-logo", "noviewer", "mw-ui-icon"}
+        if any(cls in icon_classes for cls in classes):
+            return False
+
+        # 6. If it has a `srcset` with small sizes, skip (but keep large versions)
+        #    Not necessary for a first pass.
+
+        return True
+
+    @staticmethod
     def _extract_content(
         soup: BeautifulSoup,
         base_url: URL,
@@ -65,6 +103,9 @@ class HTMLParser:
                 src = tag.get("src")
                 if not src:
                     continue
+
+                if not HTMLParser._should_download_image(tag):
+                    continue   # skip this image entirely
 
                 absolute = HTMLParser._absolute_url(src, base_url)
                 alt = tag.get("alt", "").strip() or None

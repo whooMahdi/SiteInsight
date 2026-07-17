@@ -90,19 +90,21 @@ class PageContent:
                 lambda x: URL(x.link), # type: ignore
                 filter(lambda x: isinstance(x, PageContent.LinkSnippet), snippet_list)
             )) # type: ignore
-        self._pending_image_snippets: set[PageContent.ImageSnippet] = set() if snippet_list is None else set(
-                filter(lambda x: isinstance(x, PageContent.ImageSnippet) and x.image_local_path is None, snippet_list)
-            ) # type: ignore
-    
-    @property
-    def pending_download_image_snippets(self):
-        return self._pending_image_snippets
+
+        self.pending_download_image_snippets: set[PageContent.ImageSnippet] = set()
+
+        if snippet_list is not None:
+            for snippet in snippet_list:
+                if isinstance(snippet, PageContent.ImageSnippet) and snippet.image_local_path is None:
+                    self.pending_download_image_snippets.add(snippet)
+
+
 
     def add_snippet(self, snippet: ContentSnippet):
         if isinstance(snippet, PageContent.LinkSnippet):
             self._unique_links.add(URL(snippet.link))
         elif isinstance(snippet, PageContent.ImageSnippet) and snippet.image_local_path is None:
-            self._pending_image_snippets.add(snippet)
+            self.pending_download_image_snippets.add(snippet)
         self._snippet_list.append(snippet)
     
     def get_page_snippets(self):
@@ -111,10 +113,10 @@ class PageContent:
         
     def get_media_snippets(self):
         for s in self.get_page_snippets():
-            if isinstance(s, PageContent.ImageSnippet | PageContent.VideoSnippet):
+            if isinstance(s, (PageContent.ImageSnippet, PageContent.VideoSnippet)):
                 yield s
 
-    # def get_pending_downloads(self)
+    # def get_pending_downloads(selfn)
 
     def get_text_snippets(self):
         for s in self.get_page_snippets():
@@ -199,7 +201,7 @@ class ArticlePage(WebPage):
             for s in content.get_page_snippets():
                 if "author" in s.raw_text:
                     author_snippet = s
-                    break  # قبلاً break نداشت، پس آخرین match به‌جای اولین match گرفته می‌شد
+                    break
         self.author_snippet = author_snippet
 
     @property
@@ -219,7 +221,7 @@ class ProductPage(WebPage):
             for t in content.get_text_snippets():
                 if "price" in t.text.lower():
                     price_snippet = t
-                    break  # قبلاً break نداشت
+                    break
         self.price_snippet = price_snippet
 
     @property
