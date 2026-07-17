@@ -1,0 +1,4 @@
+anytree==2.13.0
+beautifulsoup4==4.15.0
+fake_useragent==2.2.0
+Requests==2.34.2
