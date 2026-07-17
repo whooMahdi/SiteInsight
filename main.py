@@ -44,7 +44,7 @@ def main():
         crawler = Crawler(default_conf)
 
         try:
-            crawled_pages = crawler.crawl()
+            crawler.crawl()
  
             print("Crawling is completed!")
         except KeyboardInterrupt:
