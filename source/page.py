@@ -90,15 +90,13 @@ class PageContent:
                 lambda x: URL(x.link), # type: ignore
                 filter(lambda x: isinstance(x, PageContent.LinkSnippet), snippet_list)
             )) # type: ignore
-        self.pending_download_image_snippets: dict[str, set[PageContent.ImageSnippet]] = dict() 
-        
+
+        self.pending_download_image_snippets: set[PageContent.ImageSnippet] = set()
+
         if snippet_list is not None:
             for snippet in snippet_list:
                 if isinstance(snippet, PageContent.ImageSnippet) and snippet.image_local_path is None:
-                    if snippet.image_url not in self.pending_download_image_snippets:
-                        self.pending_download_image_snippets[snippet.image_url] = {snippet}
-                    else:
-                        self.pending_download_image_snippets[snippet.image_url].add(snippet)
+                    self.pending_download_image_snippets.add(snippet)
 
 
 
@@ -106,10 +104,7 @@ class PageContent:
         if isinstance(snippet, PageContent.LinkSnippet):
             self._unique_links.add(URL(snippet.link))
         elif isinstance(snippet, PageContent.ImageSnippet) and snippet.image_local_path is None:
-            if snippet.image_url not in self.pending_download_image_snippets:
-                self.pending_download_image_snippets[snippet.image_url] = {snippet}
-            else:
-                self.pending_download_image_snippets[snippet.image_url].add(snippet)
+            self.pending_download_image_snippets.add(snippet)
         self._snippet_list.append(snippet)
     
     def get_page_snippets(self):
@@ -118,10 +113,10 @@ class PageContent:
         
     def get_media_snippets(self):
         for s in self.get_page_snippets():
-            if isinstance(s, PageContent.ImageSnippet | PageContent.VideoSnippet):
+            if isinstance(s, (PageContent.ImageSnippet, PageContent.VideoSnippet)):
                 yield s
 
-    # def get_pending_downloads(self)
+    # def get_pending_downloads(selfn)
 
     def get_text_snippets(self):
         for s in self.get_page_snippets():
