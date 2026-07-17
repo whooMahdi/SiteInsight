@@ -4,7 +4,7 @@ import os
 from source.utils import get_abs_path
 
 class AppConfig:
- 
+
     def __init__(
             self,
             start_url: Optional[str] = None,
@@ -46,6 +46,7 @@ class AppConfig:
                 raise Exception("File doesn't exist")
             with open(filepath, "r", encoding="utf-8") as file:
                 data = dict(json.load(file))
+
                 if not set(data.keys()).issubset(self.__dict__.keys()):
                     raise Exception("Config file is not valid,\nthere are/is key(s) that are not valid in the config system")
                 elif not all((isinstance(data[k], type(self.__dict__[k])) or data[k] is None or self.__dict__[k] is None) for k in data.keys()):
