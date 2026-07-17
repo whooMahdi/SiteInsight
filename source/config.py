@@ -11,7 +11,7 @@ class AppConfig:
             max_depth: int = 10, 
             max_links_per_page: int = 10, 
             threads_count: int = 5,
-            images_threads_count: int = 2,
+            image_threads_count: int = 2,
             output_dir : str = "output", 
             proxy_url: Optional[str] = None,
             timeout: int = 5
@@ -21,7 +21,7 @@ class AppConfig:
         self.max_depth = max_depth
         self.max_links_per_page = max_links_per_page
         self.threads_count = threads_count
-        self.image_threads_count = images_threads_count
+        self.image_threads_count = image_threads_count
         self.output_dir = output_dir
         self.proxy_url = proxy_url
         self.timeout = timeout
