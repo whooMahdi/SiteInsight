@@ -1,6 +1,5 @@
 import argparse
-from source.config import AppConfig
-from source.crawler import Crawler
+from source import AppConfig, Crawler
 
 def main():
     AppConfig.create_default_config_file()
