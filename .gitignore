@@ -2,3 +2,5 @@ source/__pycache__
 test/__pycache__
 poetry.lock
 .vscode
+output*/
+archive*/

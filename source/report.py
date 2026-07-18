@@ -27,7 +27,7 @@ class ReportGenerator:
 
     def _sitemap_report(self) -> str:
         if self._sitemap_report_cache is None:
-            self._sitemap_report_cache = self._graph.make_sitemap_text_tree(self._main_page) + "\n\n" + self._graph.to_text()
+            self._sitemap_report_cache = self._graph.make_sitemap_tree_summurized(self._main_page) + "\n\n" + self._graph.to_text()
         return self._sitemap_report_cache
 
     def _ranks_report(self) -> str:

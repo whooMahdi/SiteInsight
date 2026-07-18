@@ -1,6 +1,8 @@
 import os
 from typing import Optional
 
+from source.page import WebPage
+
 
 def get_abs_path(path: str):
     try:
@@ -24,3 +26,13 @@ def shortner(
         if len(text) > threshold else
         text
     )
+
+def web_page_showcase(page: WebPage) -> str:
+    path = page.url.path.split("/")[-1]
+    title = page.page_title
+    if path.lower() in title.lower():
+        return shortner(page.page_title, head=15, tail=13)
+    elif title.lower() in path.lower():
+        return shortner(path, head=15, tail=10)
+    else:
+        return shortner(page.page_title, head=15, tail=13) + " -- " + shortner(path, head=15, tail=10)
