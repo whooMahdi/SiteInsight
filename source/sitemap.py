@@ -96,7 +96,7 @@ class SitemapGraph():
 
         return graph
     
-    def make_sitemap_tree_summurized(self, root_page: WebPage, max_depth: int = 8, max_children: int = 8, sort_by_rank : Optional[bool] = None) -> str:
+    def make_sitemap_tree_summurized(self, root_page: WebPage, max_depth: int = 8, max_children: int = 15, sort_by_rank : Optional[bool] = None) -> str:
 
         if sort_by_rank and (not self._scores):
             raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
@@ -196,11 +196,11 @@ class SitemapGraph():
             pages = list(self._all_pages.values())
 
         lines = [
-            "   PAGE NAME            ||     LINKED TO PAGES",
-            "----------------------------------------------"
+            "   PAGE NAME                           ||                 LINKED TO PAGES",
+            "------------------------------------------------------------------------------"
         ]
         for p in pages:
-            line = f"*{web_page_showcase(p):^20s}*  ->  {[web_page_showcase(to_page) for to_page in self._edges.get(p, [])]}"
+            line = f"*{web_page_showcase(p):^60s}*  ->  {[web_page_showcase(to_page) for to_page in self._edges.get(p, [])]}"
             lines.append(line)
         return "\n".join(lines)
     
@@ -215,12 +215,12 @@ class SitemapGraph():
             pages = list(self._all_pages.values())
 
         lines = [
-            "   RANK   ||  PAGE NAME             ||     LINKED TO PAGES",
-            "----------------------------------------------"
+            "   RANK   ||  PAGE NAME                           ||                 LINKED TO PAGES    ",
+            "-----------------------------------------------------------------------------------------"
         ]
         for p in pages:
             prefix = f"  {self._scores[p]:.3f}   ::  " if is_ranked else "" # type: ignore
-            line = prefix + f"*{web_page_showcase(p):^20s}*  ->  {[web_page_showcase(to_page) for to_page in self._edges.get(p, [])]}"
+            line = prefix + f"*{web_page_showcase(p):^60s}*  ->  {[web_page_showcase(to_page) for to_page in self._edges.get(p, [])]}"
             lines.append(line)
         return "\n".join(lines)
     

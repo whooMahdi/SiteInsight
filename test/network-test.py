@@ -18,7 +18,7 @@ urls = [
 urls = map(URL, urls)
 
 for url in urls:
-    if status := sec.should_crawl(url, visited_urls):
+    if status := sec.is_crawl_allowed(url) and url not in visited_urls:
         visited_urls.add(url)
 
     print(f"{url} -> {status}")

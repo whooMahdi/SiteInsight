@@ -73,19 +73,15 @@ class SecurityLayer:
             url.value
         )
 
-    def should_crawl(
+    def is_crawl_allowed(
         self,
-        url: str | URL,
-        visited_urls: Optional[set[URL]] = None
-    ) -> bool:
+        url: str | URL
+        ) -> bool:
+        
         url = self._to_url(url)
-
-        if visited_urls is None:
-            visited_urls = set()
 
         return (
             url.is_valid
             and self._is_same_domain(url)
             and self._is_allowed_by_robots(url)
-            and url not in visited_urls
         )
