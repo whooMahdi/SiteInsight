@@ -12,9 +12,6 @@ def build_arg_parser() -> argparse.ArgumentParser:
 
     parser.add_argument("--gui", "-g", action="store_true",
                     help="Force launch the interactive TUI mode")
-    
-    parser.add_argument("--cmd", "-c", action="store_true",
-                    help="Run on cmd wihtout any settings, just by config.json file")
 
     parser.add_argument("--url", "-u", help="Starting URL (overrides config)")
     parser.add_argument("--depth", "-d", help="How much depth gooing deep into the website")
@@ -84,14 +81,6 @@ def run_web(host: str, port: int) -> None:
     server.serve()
 
 
-def has_headless_args(args: argparse.Namespace) -> bool:
-    return any([
-        args.url, args.depth, args.max_links, args.threads,
-        args.threads_image, args.output, args.proxy, args.time_out,
-        args.set, args.cmd
-    ])
-
-
 def main():
     AppConfig.create_default_config_file()
     default_conf = AppConfig.create_from_file()
@@ -107,11 +96,6 @@ def main():
 
     if args.web:
         run_web(args.host, args.port)
-        return
-
-    # No crawl-related flags given -> open the interactive TUI.
-    if not has_headless_args(args):
-        run_tui(default_conf)
         return
 
     run_headless(default_conf, args)
