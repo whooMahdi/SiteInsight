@@ -1,5 +1,5 @@
 from typing import Optional
-
+from source.utils import web_page_showcase, shortner
 from anytree import Node, RenderTree
 from source.page import WebPage
 from source.url_utils import URL
@@ -96,13 +96,58 @@ class SitemapGraph():
 
         return graph
     
+    def make_sitemap_tree_summurized(self, root_page: WebPage, max_depth: int = 8, max_children: int = 8, sort_by_rank : Optional[bool] = None) -> str:
+
+        if sort_by_rank and (not self._scores):
+            raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
+
+        placeholder = Node("")
+        root = (Node(web_page_showcase(root_page), placeholder), root_page) # node, page
+
+        # if root is isolated show it in a better way with the placeholder
+        if len(self._edges[root_page]) == 0:
+            return RenderTree(placeholder).by_attr()
+        
+        finded_pages = {root_page}
+
+        def create_sub_nodes(current_root: tuple[Node, WebPage], current_depth: int = 1):
+            if current_root[1] not in self._edges:
+                return
+            if current_depth > max_depth:
+                Node("...", current_root[0])
+                return
+            sub_pages = list(filter(lambda x: x not in finded_pages, self._edges[current_root[1]]))
+
+            finded_pages.update(sub_pages)
+
+            if self._scores and not (sort_by_rank == False):
+                sub_pages.sort(key=lambda x: (-self._scores.get(x, 0), len(self._edges[x]))) # type: ignore
+
+            sub_pages_cutted = len(sub_pages) > max_children
+            cutted_items = 0
+            if sub_pages_cutted:
+                cutted_items = len(sub_pages) - max_children
+                sub_pages = sub_pages[:max_children]
+
+            for page in sub_pages:
+                item = (Node(web_page_showcase(page), current_root[0]), page)
+                create_sub_nodes(item, current_depth + 1)
+
+            if sub_pages_cutted:
+                Node(f"And more {cutted_items} pages ...", current_root[0])
+
+        create_sub_nodes(root)
+
+        return RenderTree(root[0]).by_attr()
+    
+
     def make_sitemap_text_tree(self, root_page: WebPage, max_depth: int = 8, max_children: int = 8, sort_by_rank : Optional[bool] = None) -> str:
 
         if sort_by_rank and (not self._scores):
             raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
 
         placeholder = Node("")
-        root = (Node(root_page.page_title, placeholder), root_page) # node, page
+        root = (Node(web_page_showcase(root_page), placeholder), root_page) # node, page
 
         # if root is isolated show it in a better way with the placeholder
         if len(self._edges[root_page]) == 0:
@@ -128,7 +173,7 @@ class SitemapGraph():
 
             for page in sub_pages:
                 if page not in current_page_path:
-                    item = (Node(page.page_title, current_root[0]), page)
+                    item = (Node(web_page_showcase(page), current_root[0]), page)
                     current_page_path.append(page)
                     create_sub_nodes(item, current_page_path)
                     current_page_path.pop()
@@ -151,11 +196,11 @@ class SitemapGraph():
             pages = list(self._all_pages.values())
 
         lines = [
-            "   PAGE NAME   ||   LINKED TO PAGES",
-            "-------------------------------------"
+            "   PAGE NAME            ||     LINKED TO PAGES",
+            "----------------------------------------------"
         ]
         for p in pages:
-            line = f"   {p.page_title:^10s}  ->  {[to_page.page_title for to_page in self._edges.get(p, [])]}"
+            line = f"*{web_page_showcase(p):^20s}*  ->  {[web_page_showcase(to_page) for to_page in self._edges.get(p, [])]}"
             lines.append(line)
         return "\n".join(lines)
     
@@ -170,12 +215,12 @@ class SitemapGraph():
             pages = list(self._all_pages.values())
 
         lines = [
-            "   RANK   ||  PAGE NAME   ||   LINKED TO PAGES",
+            "   RANK   ||  PAGE NAME             ||     LINKED TO PAGES",
             "----------------------------------------------"
         ]
         for p in pages:
             prefix = f"  {self._scores[p]:.3f}   ::  " if is_ranked else "" # type: ignore
-            line = prefix + f"{p.page_title:^10s}  ->  {[to_page.page_title for to_page in self._edges.get(p, [])]}"
+            line = prefix + f"*{web_page_showcase(p):^20s}*  ->  {[web_page_showcase(to_page) for to_page in self._edges.get(p, [])]}"
             lines.append(line)
         return "\n".join(lines)
     
