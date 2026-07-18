@@ -9,13 +9,10 @@ from rich.text import Text
 from textual import work
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
-from textual.screen import ModalScreen
-from textual.validation import Integer
 from textual.widgets import (
     Button,
     ContentSwitcher,
     DataTable,
-    DirectoryTree,
     Footer,
     Header,
     Input,
@@ -30,21 +27,16 @@ from textual.widgets.option_list import Option
 
 from source import AppConfig, Crawler
 from source.utils import shortner
+from source.ui.theme import (
+    BG, SURFACE, PANEL, BORDER, PRIMARY, SECONDARY,
+    TEXT_MUTED, SUCCESS, WARNING, ERROR,
+)
+from source.ui.dialogs import SettingsScreen, DirectoryPickerScreen
+from source.ui.page_viewer import PageBrowserScreen
 
 
 MIN_WIDTH = 104
 MIN_HEIGHT = 32
-
-BG = "#120f0c"
-SURFACE = "#1a1512"
-PANEL = "#211a15"
-BORDER = "#3d2c1c"
-PRIMARY = "#f97316"      
-SECONDARY = "#fbbf24"    
-TEXT_MUTED = "#a8927e"
-SUCCESS = "#22c55e"
-WARNING = "#facc15"
-ERROR = "#ef4444"
 
 
 # helpers
@@ -83,141 +75,6 @@ def _open_in_file_manager(path: str) -> None:
             subprocess.Popen(["xdg-open", path])
     except Exception:
         pass
-
-
-# modals
-
-
-class SettingsScreen(ModalScreen[None]):
-    DEFAULT_CSS = f"""
-    SettingsScreen {{
-        align: center middle;
-    }}
-    #settings_box {{
-        width: 54;
-        height: auto;
-        padding: 1 2;
-        border: heavy {PRIMARY};
-        background: {SURFACE};
-    }}
-    #settings_box Input {{
-        margin-bottom: 1;
-    }}
-    #settings_buttons {{
-        height: auto;
-        align: right middle;
-        margin-top: 1;
-    }}
-    #settings_buttons Button {{
-        margin-left: 1;
-    }}
-    """
-
-    def __init__(self, config: AppConfig):
-        super().__init__()
-        self.config = config
-
-    def compose(self) -> ComposeResult:
-        with Vertical(id="settings_box"):
-            yield Label("Max depth")
-            yield Input(value=str(self.config.max_depth), id="depth_input", validators=[Integer()])
-            yield Label("Max links per page")
-            yield Input(value=str(self.config.max_links_per_page), id="max_links_input", validators=[Integer()])
-            yield Label("Fetcher threads")
-            yield Input(value=str(self.config.threads_count), id="threads_input", validators=[Integer()])
-            yield Label("Image threads")
-            yield Input(value=str(self.config.image_threads_count), id="image_threads_input", validators=[Integer()])
-            yield Label("Timeout (seconds)")
-            yield Input(value=str(self.config.timeout), id="timeout_input", validators=[Integer()])
-            yield Label("Proxy URL (optional)")
-            yield Input(value=self.config.proxy_url or "", id="proxy_input")
-            with Horizontal(id="settings_buttons"):
-                yield Button("Save", id="save_btn", variant="success")
-                yield Button("Close", id="close_btn")
-
-    def on_mount(self) -> None:
-        self.query_one("#settings_box").border_title = "⚙ Settings"
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "save_btn":
-            self._apply_values()
-            self.config.save_to_file()
-        self.dismiss()
-
-    def _apply_values(self) -> None:
-        def as_int(widget_id: str, current: int) -> int:
-            value = self.query_one(f"#{widget_id}", Input).value
-            return int(value) if value.isdigit() else current
-
-        self.config.max_depth = as_int("depth_input", self.config.max_depth)
-        self.config.max_links_per_page = as_int("max_links_input", self.config.max_links_per_page)
-        self.config.threads_count = as_int("threads_input", self.config.threads_count)
-        self.config.image_threads_count = as_int("image_threads_input", self.config.image_threads_count)
-        self.config.timeout = as_int("timeout_input", self.config.timeout)
-
-        proxy_value = self.query_one("#proxy_input", Input).value
-        self.config.proxy_url = proxy_value or None
-
-
-class DirectoryPickerScreen(ModalScreen[Optional[str]]):
-    DEFAULT_CSS = f"""
-    DirectoryPickerScreen {{
-        align: center middle;
-    }}
-    #picker_box {{
-        width: 72;
-        height: 32;
-        border: heavy {PRIMARY};
-        background: {SURFACE};
-        padding: 1 2;
-    }}
-    #picker_current {{
-        height: 1;
-        color: {TEXT_MUTED};
-        margin-bottom: 1;
-    }}
-    #picker_box DirectoryTree {{
-        height: 1fr;
-        border: round {BORDER};
-        margin-bottom: 1;
-    }}
-    #picker_buttons {{
-        height: auto;
-        align: right middle;
-    }}
-    #picker_buttons Button {{
-        margin-left: 1;
-    }}
-    """
-
-    def __init__(self, start_path: str):
-        super().__init__()
-        self._start_path = start_path if os.path.isdir(start_path) else "."
-        self._selected: str = str(Path(self._start_path).resolve())
-
-    def compose(self) -> ComposeResult:
-        with Vertical(id="picker_box"):
-            yield Label(f"Selected: {self._selected}", id="picker_current")
-            yield DirectoryTree(self._start_path, id="picker_tree")
-            with Horizontal(id="picker_buttons"):
-                yield Button("Use this folder", id="pick_here_btn", variant="success")
-                yield Button("Cancel", id="pick_cancel_btn")
-
-    def on_mount(self) -> None:
-        self.query_one("#picker_box").border_title = "Choose output directory"
-
-    def on_tree_node_highlighted(self, event) -> None:
-        node_data = getattr(event.node, "data", None)
-        path = getattr(node_data, "path", None)
-        if path is not None and os.path.isdir(path):
-            self._selected = str(path)
-            self.query_one("#picker_current", Label).update(f"Selected: {self._selected}")
-
-    def on_button_pressed(self, event: Button.Pressed) -> None:
-        if event.button.id == "pick_here_btn":
-            self.dismiss(self._selected)
-        elif event.button.id == "pick_cancel_btn":
-            self.dismiss(None)
 
 
 # main app
@@ -301,6 +158,9 @@ class CrawlerApp(App):
         content-align: left middle;
         color: {TEXT_MUTED};
     }}
+    #status_row Button {{
+        margin-left: 1;
+    }}
     #view_tabs {{
         height: 3;
         margin-top: 1;
@@ -317,7 +177,7 @@ class CrawlerApp(App):
         border: round {BORDER};
         background: {PANEL};
     }}
-    #log, #pages, #report {{
+    #log, #pages, #report, #sitemap {{
         width: 100%;
         height: 100%;
     }}
@@ -405,7 +265,7 @@ class CrawlerApp(App):
         self._crawl_running = False
         self._last_pages_count = 0
         self._history: list[float] = []
-        self._views = ["log", "pages", "report"]
+        self._views = ["log", "pages", "report", "sitemap"]
         self._active_view_idx = 0
 
     def compose(self) -> ComposeResult:
@@ -437,17 +297,20 @@ class CrawlerApp(App):
                         yield Static("●", id="status_dot", classes="dot-idle")
                         yield Static("Idle", id="status")
                         yield Button("📂 Open folder", id="open_folder_btn", disabled=True)
+                        yield Button("📚 Browse Pages", id="browse_pages_btn")
 
                     with Horizontal(id="view_tabs"):
                         yield Button("🗎 Log", id="view_log_btn", variant="primary")
                         yield Button("📄 Pages", id="view_pages_btn")
                         yield Button("📊 Report", id="view_report_btn")
+                        yield Button("🗺 Sitemap", id="view_sitemap_btn")
                         yield Button("Clear", id="clear_log_btn")
 
                     with ContentSwitcher(id="switcher_container", initial="log"):
                         yield RichLog(id="log", highlight=False, markup=False)
                         yield DataTable(id="pages")
                         yield RichLog(id="report", highlight=False, markup=True)
+                        yield RichLog(id="sitemap", highlight=False, markup=True)
 
                 with Vertical(id="sidebar"):
                     yield Static("0", id="hero_pages")
@@ -496,6 +359,10 @@ class CrawlerApp(App):
         self._check_size()
         self.set_focus(self.query_one("#url_input", Input))
 
+        # If the configured output folder already has reports from a
+        # previous run, surface them without requiring a fresh crawl.
+        self._try_load_existing_reports()
+
     def on_resize(self, event) -> None:
         self._check_size()
 
@@ -516,6 +383,10 @@ class CrawlerApp(App):
         if event.input.id == "output_input":
             self.config.output_dir = event.value
             self._update_output_suggestions(event.value)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        if event.input.id == "output_input":
+            self._try_load_existing_reports()
 
     def _suggest_dirs(self, partial: str) -> list[str]:
         partial = partial.strip()
@@ -592,6 +463,7 @@ class CrawlerApp(App):
         self.config.output_dir = path
         self._update_output_suggestions("")
         self.query_one("#output_status", Static).update("✓ this folder exists")
+        self._try_load_existing_reports()
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "crawl_btn":
@@ -608,8 +480,12 @@ class CrawlerApp(App):
             self._set_active_view("pages")
         elif event.button.id == "view_report_btn":
             self._set_active_view("report")
+        elif event.button.id == "view_sitemap_btn":
+            self._set_active_view("sitemap")
         elif event.button.id == "open_folder_btn":
             self._open_output_folder()
+        elif event.button.id == "browse_pages_btn":
+            self._open_page_browser()
 
     def action_open_settings(self) -> None:
         self.push_screen(SettingsScreen(self.config))
@@ -620,6 +496,8 @@ class CrawlerApp(App):
             self.query_one("#log", RichLog).clear()
         elif switcher.current == "report":
             self.query_one("#report", RichLog).clear()
+        elif switcher.current == "sitemap":
+            self.query_one("#sitemap", RichLog).clear()
 
     def action_cycle_view(self) -> None:
         self._active_view_idx = (self._active_view_idx + 1) % len(self._views)
@@ -632,12 +510,22 @@ class CrawlerApp(App):
         self.query_one("#view_log_btn", Button).variant = "primary" if view == "log" else "default"
         self.query_one("#view_pages_btn", Button).variant = "primary" if view == "pages" else "default"
         self.query_one("#view_report_btn", Button).variant = "primary" if view == "report" else "default"
+        self.query_one("#view_sitemap_btn", Button).variant = "primary" if view == "sitemap" else "default"
         self.query_one("#clear_log_btn", Button).disabled = view == "pages"
 
     def _open_output_folder(self) -> None:
         path = os.path.abspath(self.config.output_dir)
         if os.path.isdir(path):
             _open_in_file_manager(path)
+
+    def _open_page_browser(self) -> None:
+        start_dir = self.config.output_dir or "."
+        self.push_screen(DirectoryPickerScreen(start_dir), self._on_pages_folder_chosen)
+
+    def _on_pages_folder_chosen(self, path: Optional[str]) -> None:
+        if not path:
+            return
+        self.push_screen(PageBrowserScreen(path))
 
     def _set_state(self, state: str, text: str) -> None:
         self.query_one("#status_dot", Static).set_classes(f"dot-{state}")
@@ -660,6 +548,7 @@ class CrawlerApp(App):
         self.query_one("#pages_sparkline", Sparkline).data = []
         self.query_one("#pages", DataTable).clear()
         self.query_one("#report", RichLog).clear()
+        self.query_one("#sitemap", RichLog).clear()
 
         for widget_id in ("crawl_btn", "settings_btn", "browse_btn"):
             self.query_one(f"#{widget_id}", Button).disabled = True
@@ -706,10 +595,11 @@ class CrawlerApp(App):
         if state == "done":
             self.notify(f"Crawl completed successfully!", title="SiteInsight", severity="information")
             self._load_report()
+            self._load_sitemap()
         else:
             self.notify(f"Crawl finished with errors.", title="SiteInsight", severity="error")
 
-    def _load_report(self) -> None:
+    def _load_report(self, switch_view: bool = True) -> None:
         report_path = Path(self.config.output_dir) / "report.txt"
         viewer = self.query_one("#report", RichLog)
         viewer.clear()
@@ -718,11 +608,48 @@ class CrawlerApp(App):
                 content = report_path.read_text(encoding="utf-8")
                 for line in content.splitlines():
                     viewer.write(Text(line, style="bright_yellow" if ":" in line else "white"))
-                self._set_active_view("report")
+                if switch_view:
+                    self._set_active_view("report")
             except Exception as e:
                 viewer.write(f"[red]Error loading report: {e}[/red]")
         else:
             viewer.write("[yellow]No report.txt found in the output folder.[/yellow]")
+
+    def _load_sitemap(self) -> None:
+        output_dir = Path(self.config.output_dir)
+        viewer = self.query_one("#sitemap", RichLog)
+        viewer.clear()
+
+        sitemap_path = output_dir / "sitemap.txt"
+        pagerank_path = output_dir / "pagerank.txt"
+
+        if not sitemap_path.exists() and not pagerank_path.exists():
+            viewer.write("[yellow]No sitemap.txt or pagerank.txt found in the output folder.[/yellow]")
+            return
+
+        if sitemap_path.exists():
+            viewer.write(Text("=== SITEMAP ===", style="bold bright_yellow"))
+            try:
+                for line in sitemap_path.read_text(encoding="utf-8").splitlines():
+                    viewer.write(line)
+            except Exception as e:
+                viewer.write(f"[red]Error loading sitemap: {e}[/red]")
+
+        if pagerank_path.exists():
+            viewer.write("")
+            viewer.write(Text("=== PAGERANK ===", style="bold bright_yellow"))
+            try:
+                for line in pagerank_path.read_text(encoding="utf-8").splitlines():
+                    viewer.write(line)
+            except Exception as e:
+                viewer.write(f"[red]Error loading pagerank: {e}[/red]")
+
+    def _try_load_existing_reports(self) -> None:
+        output_path = Path(self.config.output_dir)
+        if (output_path / "report.txt").is_file():
+            self._load_report(switch_view=False)
+        if (output_path / "sitemap.txt").is_file() or (output_path / "pagerank.txt").is_file():
+            self._load_sitemap()
 
     def _refresh_stats(self) -> None:
         crawler = self.crawler
