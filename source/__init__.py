@@ -2,7 +2,7 @@ from source.config import AppConfig
 from source.crawler import Crawler
 from source.url_utils import URL
 from source.page import WebPage, ArticlePage, ProductPage, GalleryPage, PageContent
-from source.TUI import run_tui
+from source.ui.TUI import run_tui
 
 __all__ = [
     "AppConfig",
@@ -13,5 +13,5 @@ __all__ = [
     "ProductPage",
     "GalleryPage",
     "PageContent",
-    "run_tui"
+    "run_tui",
 ]
