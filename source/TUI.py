@@ -28,40 +28,9 @@ from textual.widgets import (
 )
 from textual.widgets.option_list import Option
 
-try:
-    from source import AppConfig, Crawler
-    from source.utils import shortner
-except ImportError:
-    class AppConfig:
-        def __init__(self):
-            self.max_depth = 3
-            self.max_links_per_page = 10
-            self.threads_count = 4
-            self.image_threads_count = 4
-            self.timeout = 10
-            self.proxy_url = None
-            self.start_url = ""
-            self.output_dir = "output"
-        @classmethod
-        def create_from_file(cls): return cls()
-        @classmethod
-        def create_default_config_file(cls): pass
-        def save_to_file(self): pass
-    class Crawler:
-        def __init__(self, config):
-            self.config = config
-            self.active_fetchers = 0
-            self.active_image_workers = 0
-            self.pages = []
-            self.failed_pages = 0
-            self.url_queue = type('Q', (), {'qsize': lambda: 0})()
-            self.image_queue = type('Q', (), {'qsize': lambda: 0})()
-            self.start_time = time.time()
-            self.end_time = None
-        def crawl(self):
-            time.sleep(2)
-            return []
-    def shortner(text, **kwargs): return text
+from source import AppConfig, Crawler
+from source.utils import shortner
+
 
 MIN_WIDTH = 104
 MIN_HEIGHT = 32
