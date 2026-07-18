@@ -1,6 +1,7 @@
 import hashlib
 import json
 import queue
+import random
 import re
 import threading
 import time
@@ -20,6 +21,7 @@ from source.report import ReportGenerator
 from source.url_utils import URL
 from source.utils import shortner
 
+RANDOM_FROM_ALL_RATIO = 0.35
 
 class Crawler:
 
@@ -57,6 +59,8 @@ class Crawler:
         self.start_time: Optional[float] = None
         self.end_time: Optional[float] = None
 
+        random.seed(time.time())
+
     def _sanitize_path(self, url: URL) -> str:
         name = str(url).replace("https://", "").replace("http://", "")
         name = re.sub(r'[^a-zA-Z0-9\-_.]', '_', name)
@@ -93,25 +97,75 @@ class Crawler:
             extracted_links = webpage.page_unique_urls
             print(f"[Crawler] Found {len(extracted_links)} unique links on {shortner(url.value)}")
 
-            if depth < self.config.max_depth:
-                max_links = self.config.max_links_per_page
-                queued = 0
-
-                for link in extracted_links:
-                    if max_links and queued >= max_links:
-                        break
-
+            def check_add_link_to_queue(link: URL) -> bool:
+                if self.security.is_crawl_allowed(link):
+                    allowed = False
                     with self.visited_lock:
-                        if link in self.visited_urls:
-                            continue
-
-                        if self.security.should_crawl(link, self.visited_urls):
+                        if link not in self.visited_urls:
                             self.visited_urls.add(link)
-                            self.url_queue.put((link, depth + 1))
-                            queued += 1
-                            print(f"  [+] Added to Queue: {shortner(link.value)}")
-                        else:
-                            print(f"  [-] Skipped (Domain/Robots constraints): {shortner(link.value)}")
+                            allowed = True
+                    if allowed:
+                        self.url_queue.put((link, depth + 1))
+                        print(f"  [+] Added to Queue: {shortner(link.value)}")
+                        return True
+                
+                print(f"  [-] Skipped (Domain/Robots constraints/Currently visited): {shortner(link.value)}")
+                
+                return False
+
+
+            if depth < self.config.max_depth:
+                
+                max_links = self.config.max_links_per_page
+                random_links_count = int(RANDOM_FROM_ALL_RATIO * max_links)
+                usual_links_count = max_links - random_links_count
+                
+                usual_queued = 0
+                last_usual_i = -1
+                for i in range(len(extracted_links)):
+                    last_usual_i = i
+                    link = extracted_links[i]
+                    if check_add_link_to_queue(link):
+                        usual_queued += 1
+                    if usual_queued >= usual_links_count:
+                        break
+                
+                # selecting random urls using (Sparse Dict Random Sampling) strategy for effciency
+                # spare dict random sampling is a way to emulate Swap and Pop algorithem withou list of indexes
+
+                random_queued = 0
+                start = last_usual_i + 1
+                end = len(extracted_links)
+                remaining = end - start
+
+                # key   = position in the conceptual array
+                # value = actual index from extracted_links
+                swap = dict()
+
+                while remaining > 0 and random_queued < random_links_count:
+
+                    pos = random.randrange(remaining)
+
+                    # default is the position in extracted links
+                    actual = swap.get(pos, start + pos)
+        
+                    last_pos = remaining - 1
+                    last_actual = swap.get(last_pos, start + last_pos)
+
+                    # swap
+                    swap[pos] = last_actual
+                    
+                    # pop
+                    if last_pos in swap:
+                        del swap[last_pos]
+
+                    link = extracted_links[actual]
+
+                    if check_add_link_to_queue(link):
+                        random_queued += 1
+
+                    remaining -= 1
+
             else:
                 print(f"[Crawler] Max depth ({self.config.max_depth}) reached for {shortner(url.value)}")
 
