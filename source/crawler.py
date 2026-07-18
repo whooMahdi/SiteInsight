@@ -48,6 +48,9 @@ class Crawler:
         self.active_lock = threading.Lock()
 
         self.image_queue: queue.Queue = queue.Queue()
+        self.active_image_workers: int = 0
+        self.active_image_lock = threading.Lock()
+
         self.pages_to_save: dict[URL, WebPage] = {}
         self.pages_to_save_lock = threading.Lock()
 
@@ -222,8 +225,15 @@ class Crawler:
                 webpage, snippet = self.image_queue.get(timeout=1)
             except queue.Empty:
                 continue
+
+            with self.active_image_lock:
+                self.active_image_workers += 1
+
             self._download_image(webpage, snippet)
             self.image_queue.task_done()
+
+            with self.active_image_lock:
+                self.active_image_workers -= 1
 
     def crawl(self) -> list[WebPage]:
         self.start_time = time.time()
