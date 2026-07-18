@@ -117,7 +117,7 @@ class Crawler:
             if depth < self.config.max_depth:
                 
                 max_links = self.config.max_links_per_page
-                random_links_count = int(RANDOM_FROM_ALL_RATIO * max_links)
+                random_links_count = max(int(RANDOM_FROM_ALL_RATIO * max_links), 1)
                 usual_links_count = max_links - random_links_count
                 
                 usual_queued = 0
