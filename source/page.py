@@ -85,8 +85,8 @@ class PageContent:
 
     def __init__(self, snippet_list: Optional[list[ContentSnippet]] = None):
         self._snippet_list: list[PageContent.ContentSnippet] = snippet_list or list()
-        self._unique_links: list[URL] = \
-            list() if snippet_list is None else list(map(
+        self._unique_links: set[URL] = \
+            set() if snippet_list is None else set(map(
                 lambda x: URL(x.link), # type: ignore
                 filter(lambda x: isinstance(x, PageContent.LinkSnippet), snippet_list)
             )) # type: ignore
@@ -102,7 +102,7 @@ class PageContent:
 
     def add_snippet(self, snippet: ContentSnippet):
         if isinstance(snippet, PageContent.LinkSnippet):
-            self._unique_links.append(URL(snippet.link))
+            self._unique_links.add(URL(snippet.link))
         elif isinstance(snippet, PageContent.ImageSnippet) and snippet.image_local_path is None:
             self.pending_download_image_snippets.add(snippet)
         self._snippet_list.append(snippet)
@@ -151,7 +151,7 @@ class WebPage:
         return f"{self.page_title} : {self.url}"
 
     @property
-    def page_unique_urls(self) -> list[URL]:
+    def page_unique_urls(self) -> set[URL]:
         if self.url in self.content._unique_links:
             self.content._unique_links.remove(self.url)
         return self.content._unique_links

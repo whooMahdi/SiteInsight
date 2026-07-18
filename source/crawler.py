@@ -94,7 +94,7 @@ class Crawler:
             with self.pages_lock:
                 self.pages.append(webpage)
 
-            extracted_links = webpage.page_unique_urls
+            extracted_links = list(webpage.page_unique_urls)
             print(f"[Crawler] Found {len(extracted_links)} unique links on {shortner(url.value)}")
 
             def check_add_link_to_queue(link: URL) -> bool:
