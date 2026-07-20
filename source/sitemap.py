@@ -57,10 +57,7 @@ class SitemapGraph():
                 for t in to_page:
                     new_scores[t] += each_link_weight * damping_factor
 
-            
-
             # pages without out link
-
             pages_without_out = filter(lambda x: x not in self._edges.keys() or len(self._edges[x]) == 0, all_pages_set)
             if pages_without_out:
                 total_score_without_out = sum(self._scores[p] for p in pages_without_out)
@@ -68,8 +65,31 @@ class SitemapGraph():
                 for page in all_pages_set:
                     new_scores[page] += each_weight
 
-
             self._scores = new_scores
+
+    def get_capped_children(
+        self,
+        page: WebPage,
+        exclude: Optional[set[URL]] = None,
+        max_children: int = 15,
+        sort_by_rank: bool = True,
+        visited: Optional[set[URL]] = None,
+    ) -> tuple[list[WebPage], int]:
+        """Rank-sorted, capped children of `page`, for lazy/incremental tree building."""
+        exclude = exclude or set()
+        visited = visited if visited is not None else set()
+
+        children = [
+            p for p in self._edges.get(page, set())
+            if p.url not in exclude and p.url not in visited
+        ]
+
+        if self._scores and sort_by_rank:
+            children.sort(key=lambda x: (-self._scores.get(x, 0), -len(self._edges.get(x, set()))))
+
+        if len(children) > max_children:
+            return children[:max_children], len(children) - max_children
+        return children, 0
 
     def sort_pages_by_rank(self) -> list[WebPage]:
         if self._scores is not None:
@@ -99,13 +119,21 @@ class SitemapGraph():
     def make_sitemap_tree_summurized(self, root_page: WebPage, max_depth: int = 8, max_children: int = 15, sort_by_rank : Optional[bool] = None) -> str:
 
         if sort_by_rank and (not self._scores):
-            raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
+            raise Exception("make_sitemap_tree_summurized : Cannot be forced to sort_by_rank because the ranks are not calculated")
 
         placeholder = Node("")
+        
+        # Adding explanation header about the BFS unique-node strategy
+        explanation = (
+            "[Notice] BFS (Breadth-First Search) algorithm was used to construct this sitemap tree "
+            "to prevent repeating duplicate sub-pages (e.g., Login/Footer links) across different branches."
+        )
+        Node(explanation, placeholder)
+
         root = (Node(web_page_showcase(root_page), placeholder), root_page) # node, page
 
         # if root is isolated show it in a better way with the placeholder
-        if len(self._edges[root_page]) == 0:
+        if len(self._edges.get(root_page, set())) == 0:
             return RenderTree(placeholder).by_attr()
         
         finded_pages = {root_page}
@@ -138,7 +166,7 @@ class SitemapGraph():
 
         create_sub_nodes(root)
 
-        return RenderTree(root[0]).by_attr()
+        return RenderTree(placeholder).by_attr()
     
 
     def make_sitemap_text_tree(self, root_page: WebPage, max_depth: int = 8, max_children: int = 8, sort_by_rank : Optional[bool] = None) -> str:
@@ -147,21 +175,36 @@ class SitemapGraph():
             raise Exception("make_sitemap_text_tree : Cannot be forced to sort_by_rank because the ranks are not calculated")
 
         placeholder = Node("")
+
+        # Adding explanation header about the BFS unique-node strategy
+        explanation = (
+            "[Notice] BFS (Breadth-First Search) algorithm was used to construct this sitemap tree "
+            "to prevent repeating duplicate sub-pages (e.g., Login/Footer links) across different branches."
+        )
+        Node(explanation, placeholder)
+
         root = (Node(web_page_showcase(root_page), placeholder), root_page) # node, page
 
         # if root is isolated show it in a better way with the placeholder
-        if len(self._edges[root_page]) == 0:
+        if len(self._edges.get(root_page, set())) == 0:
             return RenderTree(placeholder).by_attr()
 
-        def create_sub_nodes(current_root: tuple[Node, WebPage], current_page_path: Optional[list[WebPage]] = None):
-            if current_page_path is None:
-                current_page_path = [current_root[1]]
+        # Global visited set across the entire tree using Breadth-First Search strategy
+        visited_pages = {root_page}
+
+        def create_sub_nodes(current_root: tuple[Node, WebPage], current_depth: int = 1):
             if current_root[1] not in self._edges:
                 return
-            if len(current_page_path) > max_depth:
+            if current_depth > max_depth:
                 Node("...", current_root[0])
                 return
-            sub_pages = list(self._edges[current_root[1]])
+            
+            # Filter pages to exclude any page already added anywhere in the tree
+            sub_pages = [p for p in self._edges[current_root[1]] if p not in visited_pages]
+
+            # Track these new sub-pages globally
+            visited_pages.update(sub_pages)
+
             if self._scores and not (sort_by_rank == False):
                 sub_pages.sort(key=lambda x: (-self._scores.get(x, 0), len(self._edges[x]))) # type: ignore
 
@@ -172,18 +215,15 @@ class SitemapGraph():
                 sub_pages = sub_pages[:max_children]
 
             for page in sub_pages:
-                if page not in current_page_path:
-                    item = (Node(web_page_showcase(page), current_root[0]), page)
-                    current_page_path.append(page)
-                    create_sub_nodes(item, current_page_path)
-                    current_page_path.pop()
+                item = (Node(web_page_showcase(page), current_root[0]), page)
+                create_sub_nodes(item, current_depth + 1)
 
             if sub_pages_cutted:
                 Node(f"And more {cutted_items} pages ...", current_root[0])
 
         create_sub_nodes(root)
 
-        return RenderTree(root[0]).by_attr()
+        return RenderTree(placeholder).by_attr()
 
     def to_text(self, sort_by_rank : Optional[bool] = None):
         if sort_by_rank and (not self._scores):
