@@ -25,10 +25,15 @@ from textual.widgets import (
     RichLog,
     Sparkline,
     Static,
+    Tree,
 )
 from textual.widgets.option_list import Option
+from textual.widgets.tree import TreeNode
 
 from source import AppConfig, Crawler
+from source.page import WebPage
+from source.sitemap import SitemapGraph
+from source import URL
 from source.utils import shortner
 
 
@@ -45,6 +50,20 @@ TEXT_MUTED = "#a8927e"
 SUCCESS = "#22c55e"
 WARNING = "#facc15"
 ERROR = "#ef4444"
+
+PAGE_TYPE_ICONS = {
+    "article": "📄",
+    "product": "🛒",
+    "gallery": "🖼",
+    "unknown": "❔",
+}
+PAGE_TYPE_COLORS = {
+    "article": PRIMARY,
+    "product": SUCCESS,
+    "gallery": SECONDARY,
+    "unknown": TEXT_MUTED,
+}
+SITEMAP_MAX_CHILDREN = 15
 
 
 # helpers
@@ -317,11 +336,11 @@ class CrawlerApp(App):
         border: round {BORDER};
         background: {PANEL};
     }}
-    #log, #pages, #report {{
+    #log, #pages, #sitemap {{
         width: 100%;
         height: 100%;
     }}
-    #pages {{
+    #pages, #sitemap {{
         background: transparent;
         border: none;
     }}
@@ -405,8 +424,10 @@ class CrawlerApp(App):
         self._crawl_running = False
         self._last_pages_count = 0
         self._history: list[float] = []
-        self._views = ["log", "pages", "report"]
+        self._views = ["log", "pages", "sitemap"]
         self._active_view_idx = 0
+        self._sitemap_visited_urls: set[URL] = set()
+        self._sitemap_graph: Optional[SitemapGraph] = None
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -441,13 +462,13 @@ class CrawlerApp(App):
                     with Horizontal(id="view_tabs"):
                         yield Button("🗎 Log", id="view_log_btn", variant="primary")
                         yield Button("📄 Pages", id="view_pages_btn")
-                        yield Button("📊 Report", id="view_report_btn")
+                        yield Button("🌳 Sitemap", id="view_sitemap_btn")
                         yield Button("Clear", id="clear_log_btn")
 
                     with ContentSwitcher(id="switcher_container", initial="log"):
                         yield RichLog(id="log", highlight=False, markup=False)
                         yield DataTable(id="pages")
-                        yield RichLog(id="report", highlight=False, markup=True)
+                        yield Tree("🌐 Sitemap", id="sitemap")
 
                 with Vertical(id="sidebar"):
                     yield Static("0", id="hero_pages")
@@ -606,8 +627,8 @@ class CrawlerApp(App):
             self._set_active_view("log")
         elif event.button.id == "view_pages_btn":
             self._set_active_view("pages")
-        elif event.button.id == "view_report_btn":
-            self._set_active_view("report")
+        elif event.button.id == "view_sitemap_btn":
+            self._set_active_view("sitemap")
         elif event.button.id == "open_folder_btn":
             self._open_output_folder()
 
@@ -618,8 +639,6 @@ class CrawlerApp(App):
         switcher = self.query_one("#switcher_container", ContentSwitcher)
         if switcher.current == "log":
             self.query_one("#log", RichLog).clear()
-        elif switcher.current == "report":
-            self.query_one("#report", RichLog).clear()
 
     def action_cycle_view(self) -> None:
         self._active_view_idx = (self._active_view_idx + 1) % len(self._views)
@@ -628,11 +647,11 @@ class CrawlerApp(App):
     def _set_active_view(self, view: str) -> None:
         self.query_one("#switcher_container", ContentSwitcher).current = view
         self._active_view_idx = self._views.index(view)
-        
+
         self.query_one("#view_log_btn", Button).variant = "primary" if view == "log" else "default"
         self.query_one("#view_pages_btn", Button).variant = "primary" if view == "pages" else "default"
-        self.query_one("#view_report_btn", Button).variant = "primary" if view == "report" else "default"
-        self.query_one("#clear_log_btn", Button).disabled = view == "pages"
+        self.query_one("#view_sitemap_btn", Button).variant = "primary" if view == "sitemap" else "default"
+        self.query_one("#clear_log_btn", Button).disabled = view != "log"
 
     def _open_output_folder(self) -> None:
         path = os.path.abspath(self.config.output_dir)
@@ -659,7 +678,10 @@ class CrawlerApp(App):
         self._history = []
         self.query_one("#pages_sparkline", Sparkline).data = []
         self.query_one("#pages", DataTable).clear()
-        self.query_one("#report", RichLog).clear()
+        try:
+            self.query_one("#report", RichLog).clear()
+        except Exception:
+            pass
 
         for widget_id in ("crawl_btn", "settings_btn", "browse_btn"):
             self.query_one(f"#{widget_id}", Button).disabled = True
@@ -705,24 +727,123 @@ class CrawlerApp(App):
         
         if state == "done":
             self.notify(f"Crawl completed successfully!", title="SiteInsight", severity="information")
-            self._load_report()
+            self._build_sitemap_tree()
         else:
             self.notify(f"Crawl finished with errors.", title="SiteInsight", severity="error")
 
-    def _load_report(self) -> None:
-        report_path = Path(self.config.output_dir) / "report.txt"
-        viewer = self.query_one("#report", RichLog)
-        viewer.clear()
-        if report_path.exists():
-            try:
-                content = report_path.read_text(encoding="utf-8")
-                for line in content.splitlines():
-                    viewer.write(Text(line, style="bright_yellow" if ":" in line else "white"))
-                self._set_active_view("report")
-            except Exception as e:
-                viewer.write(f"[red]Error loading report: {e}[/red]")
-        else:
-            viewer.write("[yellow]No report.txt found in the output folder.[/yellow]")
+    # sitemap tree (native Textual Tree, lazily expanded + rank-capped)
+
+    def _page_node_label(self, page: WebPage) -> Text:
+        icon = PAGE_TYPE_ICONS.get(page.page_type, PAGE_TYPE_ICONS["unknown"])
+        color = PAGE_TYPE_COLORS.get(page.page_type, PAGE_TYPE_COLORS["unknown"])
+
+        label = Text(f"{icon} ")
+        scores = self._sitemap_graph.scores if self._sitemap_graph else None
+        if scores and page in scores:
+            label.append(f"{scores[page] * 100:5.2f}%  ", style=f"bold {SECONDARY}")
+
+        title = page.page_title.strip() if page.page_title else str(page.url)
+        label.append(shortner(title, head=48, tail=0, threshold=48), style=f"bold {color}")
+        label.append("  " + shortner(str(page.url), head=28, tail=12), style=TEXT_MUTED)
+        return label
+
+    def _ancestor_urls(self, node: TreeNode) -> set:
+        urls = set()
+        current: Optional[TreeNode] = node
+        while current is not None:
+            data = current.data
+            if data and data.get("page") is not None:
+                urls.add(data["page"].url)
+            current = current.parent
+        return urls
+
+    def _populate_tree_children(self, node: TreeNode) -> None:
+        data = node.data
+        if not data or data.get("page") is None or self._sitemap_graph is None:
+            return
+
+        page = data["page"]
+        ancestors = self._ancestor_urls(node)
+        
+        # دریافت فرزندان با در نظر گرفتن صفحات قبلاً دیده‌شده در کل درخت
+        children, extra = self._sitemap_graph.get_capped_children(
+            page, 
+            exclude=ancestors, 
+            max_children=SITEMAP_MAX_CHILDREN,
+            visited=self._sitemap_visited_urls
+        )
+
+        all_edges = self._sitemap_graph.edges
+        for child in children:
+            # ثبت صفحه در مجموعه سراسری تا در شاخه‌های دیگر تکرار نشود
+            self._sitemap_visited_urls.add(child.url)
+            
+            has_children = bool(all_edges.get(child))
+            child_node = node.add(
+                self._page_node_label(child),
+                data={"page": child, "loaded": False},
+                allow_expand=has_children,
+            )
+            if not has_children:
+                child_node.allow_expand = False
+
+        if extra > 0:
+            node.add_leaf(Text(f"… and {extra} more pages", style=f"italic {TEXT_MUTED}"))
+
+        data["loaded"] = True
+
+    def _build_sitemap_tree(self) -> None:
+        crawler = self.crawler
+        tree = self.query_one("#sitemap", Tree)
+        tree.clear()
+        tree.root.data = None
+
+        if not crawler or not crawler.pages:
+            tree.root.set_label("No pages crawled")
+            return
+
+        self._sitemap_graph = SitemapGraph.from_webpages(set(crawler.pages))
+        main_page = next(
+            (p for p in crawler.pages if p.url == crawler.start_url), crawler.pages[0]
+        )
+
+        # مقداردهی اولیه مجموعه صفحات دیده‌شده
+        self._sitemap_visited_urls = {main_page.url}
+
+        tree.root.set_label(self._page_node_label(main_page))
+        tree.root.data = {"page": main_page, "loaded": False}
+        tree.root.allow_expand = True
+        self._populate_tree_children(tree.root)
+        tree.root.expand()
+
+    def on_tree_node_expanded(self, event: Tree.NodeExpanded) -> None:
+        if event.node.tree.id != "sitemap":
+            return
+            
+        data = event.node.data
+        if data and not data.get("loaded", True):
+            self._populate_tree_children(event.node)
+
+    def _build_sitemap_tree(self) -> None:
+        crawler = self.crawler
+        tree = self.query_one("#sitemap", Tree)
+        tree.clear()
+        tree.root.data = None
+
+        if not crawler or not crawler.pages:
+            tree.root.set_label("No pages crawled")
+            return
+
+        self._sitemap_graph = SitemapGraph.from_webpages(set(crawler.pages))
+        main_page = next(
+            (p for p in crawler.pages if p.url == crawler.start_url), crawler.pages[0]
+        )
+
+        tree.root.set_label(self._page_node_label(main_page))
+        tree.root.data = {"page": main_page, "loaded": False}
+        tree.root.allow_expand = True
+        self._populate_tree_children(tree.root)
+        tree.root.expand()
 
     def _refresh_stats(self) -> None:
         crawler = self.crawler
